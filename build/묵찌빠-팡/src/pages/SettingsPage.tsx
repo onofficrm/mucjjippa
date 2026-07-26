@@ -16,13 +16,17 @@ import {
   Bot,
   HelpCircle,
   Check,
+  LogOut,
+  Shield,
 } from 'lucide-react';
 import { useGame } from '../context/GameContext';
 import { sound } from '../utils/audio';
+import { authService } from '../services/authService';
 
 export const SettingsPage: React.FC = () => {
   const {
     goBack,
+    navigateTo,
     soundMuted,
     toggleSound,
     masterVolume,
@@ -41,16 +45,43 @@ export const SettingsPage: React.FC = () => {
     setAudioSubtitlesEnabled,
     openTutorial,
     startPracticeGame,
+    logout,
+    isGuest,
+    user,
+    showToast,
   } = useGame();
 
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(true);
   const [autoplayUnlocked, setAutoplayUnlocked] = useState<boolean>(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const persistServerSettings = (patch: {
+    bgmVolume?: number;
+    effectVolume?: number;
+    vibration?: boolean;
+    reducedMotion?: boolean;
+    tournamentNotification?: boolean;
+  }) => {
+    if (isGuest) return;
+    authService.updateMySettings(patch).catch(() => {
+      showToast('설정 저장에 실패했습니다.', 'error');
+    });
+  };
 
   const handleUnlockAudio = () => {
     sound.initCtx();
     sound.playClick();
     if (bgmEnabled) sound.startBGM();
     setAutoplayUnlocked(true);
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   return (
@@ -183,7 +214,11 @@ export const SettingsPage: React.FC = () => {
             max="1"
             step="0.05"
             value={bgmVolume}
-            onChange={(e) => setVolumes(masterVolume, parseFloat(e.target.value), sfxVolume)}
+            onChange={(e) => {
+              const next = parseFloat(e.target.value);
+              setVolumes(masterVolume, next, sfxVolume);
+              persistServerSettings({ bgmVolume: next });
+            }}
             className="w-full accent-purple-500 bg-slate-800 h-2 rounded-lg cursor-pointer"
           />
         </div>
@@ -200,7 +235,11 @@ export const SettingsPage: React.FC = () => {
             max="1"
             step="0.05"
             value={sfxVolume}
-            onChange={(e) => setVolumes(masterVolume, bgmVolume, parseFloat(e.target.value))}
+            onChange={(e) => {
+              const next = parseFloat(e.target.value);
+              setVolumes(masterVolume, bgmVolume, next);
+              persistServerSettings({ effectVolume: next });
+            }}
             className="w-full accent-amber-400 bg-slate-800 h-2 rounded-lg cursor-pointer"
           />
         </div>
@@ -276,7 +315,11 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           <button
-            onClick={() => setReduceMotion(!reduceMotion)}
+            onClick={() => {
+              const next = !reduceMotion;
+              setReduceMotion(next);
+              persistServerSettings({ reducedMotion: next });
+            }}
             className={`w-12 h-6 rounded-full transition-colors p-1 flex items-center min-h-[44px] ${
               reduceMotion ? 'bg-emerald-400 justify-end' : 'bg-slate-800 justify-start'
             }`}
@@ -320,7 +363,11 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           <button
-            onClick={() => setHapticEnabled(!hapticEnabled)}
+            onClick={() => {
+              const next = !hapticEnabled;
+              setHapticEnabled(next);
+              persistServerSettings({ vibration: next });
+            }}
             className={`w-12 h-6 rounded-full transition-colors p-1 flex items-center min-h-[44px] ${
               hapticEnabled ? 'bg-emerald-400 justify-end' : 'bg-slate-800 justify-start'
             }`}
@@ -342,7 +389,11 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           <button
-            onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+            onClick={() => {
+              const next = !notificationsEnabled;
+              setNotificationsEnabled(next);
+              persistServerSettings({ tournamentNotification: next });
+            }}
             className={`w-12 h-6 rounded-full transition-colors p-1 flex items-center min-h-[44px] ${
               notificationsEnabled ? 'bg-emerald-400 justify-end' : 'bg-slate-800 justify-start'
             }`}
@@ -350,6 +401,39 @@ export const SettingsPage: React.FC = () => {
             <div className="w-4 h-4 rounded-full bg-slate-950" />
           </button>
         </div>
+      </div>
+
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3">
+        <h3 className="text-sm font-black text-white">계정</h3>
+        <div className="text-xs text-slate-400">
+          {isGuest ? (
+            <span>게스트 체험 중 — 영구 기록이 저장되지 않습니다.</span>
+          ) : (
+            <span>
+              {user.nickname}
+              {user.loginId ? ` (@${user.loginId})` : ''}
+            </span>
+          )}
+        </div>
+        {!isGuest && (
+          <button
+            type="button"
+            onClick={() => navigateTo('admin_center')}
+            className="w-full min-h-[48px] rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-sm flex items-center justify-center gap-2"
+          >
+            <Shield className="w-4 h-4" />
+            관리자센터
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="w-full min-h-[48px] rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+        >
+          <LogOut className="w-4 h-4" />
+          {loggingOut ? '로그아웃 중…' : isGuest ? '게스트 종료' : '로그아웃'}
+        </button>
       </div>
     </div>
   );

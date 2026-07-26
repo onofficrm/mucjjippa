@@ -17,73 +17,75 @@ import {
 } from 'lucide-react';
 import { useGame } from '../context/GameContext';
 import { sound } from '../utils/audio';
+import { tournamentService } from '../services/tournamentService';
+import { gameSocket } from '../api/socket';
 
 export const TournamentWaitPage: React.FC = () => {
-  const { navigateTo, goBack, user, activeTournament, cancelTournamentRegistration, isTournamentRegistered, setRewardModal } = useGame();
+  const { navigateTo, goBack, user, activeTournament, cancelTournamentRegistration, setRewardModal } = useGame();
 
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(135); // 2분 15초
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(0);
   const [pushEnabled, setPushEnabled] = useState<boolean>(true);
   const [soundTestMsg, setSoundTestMsg] = useState<string | null>(null);
+  const [participants, setParticipants] = useState<{ id: string; name: string; avatar: string; entryNo: number }[]>([]);
+  const [count, setCount] = useState<number>(0);
 
-  // Mock participants avatar stream
-  const [participants, setParticipants] = useState<{ id: string; name: string; avatar: string; entryNo: number }[]>([
-    { id: 'p1', name: '전설의주먹', avatar: '👑', entryNo: 1 },
-    { id: 'p2', name: '불패가위바위', avatar: '🔥', entryNo: 2 },
-    { id: 'p3', name: '네온닌자', avatar: '🥷', entryNo: 3 },
-    { id: 'p4', name: '사이보그AI', avatar: '🤖', entryNo: 4 },
-    { id: 'p5', name: '승리의신', avatar: '⚡', entryNo: 5 },
-    { id: 'p6', name: '드래곤슬레이어', avatar: '🐉', entryNo: 6 },
-    { id: 'p7', name: '럭키스타', avatar: '⭐', entryNo: 7 },
-    { id: 'p8', name: 'Dorirang (나)', avatar: user.avatar, entryNo: 87 },
-  ]);
+  const refreshParticipants = async () => {
+    if (!activeTournament) return;
+    try {
+      const list = await tournamentService.getParticipants(activeTournament.id);
+      setCount(list.length);
+      setParticipants(
+        list.slice(-12).map((p, index) => ({
+          id: p.id,
+          name: p.isMe ? `${p.nickname} (나)` : p.nickname,
+          avatar: p.avatar,
+          entryNo: p.seed ?? index + 1,
+        }))
+      );
+    } catch {
+      /* keep previous */
+    }
+  };
 
-  const [count, setCount] = useState<number>(117);
+  useEffect(() => {
+    if (!activeTournament) return;
+    tournamentService.subscribe(activeTournament.id);
+    void refreshParticipants();
+    void tournamentService.getTournamentById(activeTournament.id).then((t) => {
+      if (!t) return;
+      const end = t.startTimeEpoch || Date.parse(t.startTime);
+      setRemainingSeconds(Math.max(0, Math.ceil((end - Date.now()) / 1000)));
+      setCount(t.currentParticipants);
+    });
 
-  // Live countdown timer
+    const offJoined = gameSocket.on('PARTICIPANT_JOINED', () => {
+      void refreshParticipants();
+    });
+    const offCountdown = gameSocket.on('TOURNAMENT_COUNTDOWN', (payload) => {
+      const data = payload as { endsAt?: number };
+      if (data.endsAt) setRemainingSeconds(Math.max(0, Math.ceil((data.endsAt - Date.now()) / 1000)));
+    });
+    const offStarted = gameSocket.on('TOURNAMENT_STARTED', () => navigateTo('tournament_game'));
+    const offUpdated = gameSocket.on('TOURNAMENT_UPDATED', (payload) => {
+      const data = payload as { status?: string };
+      if (data.status === 'QUALIFIER' || data.status === 'BRACKET') navigateTo('tournament_game');
+    });
+    const poll = setInterval(() => void refreshParticipants(), 5000);
+    return () => {
+      offJoined();
+      offCountdown();
+      offStarted();
+      offUpdated();
+      clearInterval(poll);
+    };
+  }, [activeTournament?.id]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setRemainingSeconds((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
   }, []);
-
-  // Continuous avatar add animation (mock participants joining)
-  useEffect(() => {
-    const avatars = ['🦊', '🐺', '🦁', '🐯', '🐼', '🐨', '🦄', '🦅', '🦈', '🚀'];
-    const names = [
-      '골드마스터',
-      '파이어피스트',
-      '샤프슈터',
-      '바위의제왕',
-      '가위신동',
-      '보자기마스터',
-      '운칠기삼',
-      '토너먼트킹',
-    ];
-
-    const stream = setInterval(() => {
-      setCount((prev) => {
-        if (prev >= (activeTournament?.maxParticipants || 128)) return prev;
-        const nextVal = prev + 1;
-        const randomAvatar = avatars[Math.floor(Math.random() * avatars.length)];
-        const randomName = names[Math.floor(Math.random() * names.length)];
-
-        setParticipants((current) => [
-          ...current.slice(-11), // keep last 12
-          {
-            id: `p_new_${Date.now()}`,
-            name: `${randomName} #${nextVal}`,
-            avatar: randomAvatar,
-            entryNo: nextVal,
-          },
-        ]);
-
-        return nextVal;
-      });
-    }, 2800);
-
-    return () => clearInterval(stream);
-  }, [activeTournament]);
 
   const formatCountdown = (totalSec: number) => {
     const m = Math.floor(totalSec / 60);

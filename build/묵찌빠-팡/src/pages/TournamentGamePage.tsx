@@ -24,6 +24,8 @@ import {
 import { useGame } from '../context/GameContext';
 import { RPSChoice } from '../types';
 import { sound } from '../utils/audio';
+import { gameSocket } from '../api/socket';
+import { tournamentService } from '../services/tournamentService';
 
 // Tournament progression steps definition
 export interface TourStep {
@@ -34,7 +36,7 @@ export interface TourStep {
 
 export const TOURNAMENT_STEPS: TourStep[] = [
   { id: 'reg', label: '참가 접수', roundName: '체크인 완료' },
-  { id: 'prelim', label: '예선전', roundName: '128명 예선' },
+  { id: 'prelim', label: '예선전', roundName: '예선 소수결' },
   { id: 'r64', label: '64강', roundName: '64강전' },
   { id: 'r32', label: '32강', roundName: '32강전' },
   { id: 'r16', label: '16강', roundName: '16강전' },
@@ -45,7 +47,7 @@ export const TOURNAMENT_STEPS: TourStep[] = [
 ];
 
 export const TournamentGamePage: React.FC = () => {
-  const { navigateTo, user, setRewardModal } = useGame();
+  const { navigateTo, user, setRewardModal, activeTournament } = useGame();
 
   // Current stage in the tournament flow
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(1); // Default: Preliminaries (index 1)
@@ -133,54 +135,92 @@ export const TournamentGamePage: React.FC = () => {
     }
   }, [currentStepIndex]);
 
-  // Handle Preliminary Submission
+  // Handle Preliminary Submission — 서버 소수결 집계
   const handlePrelimSubmit = (choice: RPSChoice) => {
-    if (!choice) return;
+    if (!choice || !activeTournament) return;
     sound.playSelectRPS();
     setPrelimChoice(choice);
     setPrelimSubmitted(true);
-
-    // Simulate 128 choices breakdown
-    setTimeout(() => {
-      let rock = 48;
-      let paper = 52;
-      let scissors = 28;
-
-      if (choice === 'scissors') scissors += 1;
-      else if (choice === 'rock') rock += 1;
-      else paper += 1;
-
-      // Determine winning hand based on rule mode
-      let winning: RPSChoice = 'scissors';
-      if (prelimRuleMode === 'minority_pass') {
-        // Minority hand wins (Scissors = 28 or 29, smallest)
-        if (rock <= paper && rock <= scissors) winning = 'rock';
-        else if (paper <= rock && paper <= scissors) winning = 'paper';
-        else winning = 'scissors';
-      } else {
-        // Majority hand wins (Paper = 52 or 53, largest)
-        if (rock >= paper && rock >= scissors) winning = 'rock';
-        else if (paper >= rock && paper >= scissors) winning = 'paper';
-        else winning = 'scissors';
-      }
-
-      const passed = choice === winning;
-
-      setPrelimResult({
-        rock,
-        paper,
-        scissors,
-        winningHand: winning,
-        userPassed: passed,
-      });
-
-      if (passed) {
-        sound.playWin();
-      } else {
-        sound.playLose();
-      }
-    }, 1500);
+    gameSocket.emit('QUALIFIER_CHOICE_SUBMIT', {
+      tournamentId: activeTournament.id,
+      choice,
+    });
   };
+
+  useEffect(() => {
+    if (!activeTournament) return;
+    tournamentService.subscribe(activeTournament.id);
+
+    const offStarted = gameSocket.on('QUALIFIER_STARTED', (payload) => {
+      const data = payload as { endsAt?: number; alive?: number };
+      setCurrentStepIndex(1);
+      setPrelimSubmitted(false);
+      setPrelimChoice(null);
+      setPrelimResult(null);
+      if (data.endsAt) {
+        setPrelimTimeLeft(Math.max(1, Math.ceil((data.endsAt - Date.now()) / 1000)));
+      }
+      if (data.alive) setPrelimSelectedCount(0);
+    });
+
+    const offResult = gameSocket.on('QUALIFIER_RESULT', (payload) => {
+      const data = payload as {
+        isTie?: boolean;
+        minorityChoice?: string;
+        tallies?: { ROCK: number; PAPER: number; SCISSORS: number };
+        survivors?: number;
+      };
+      const tallies = data.tallies ?? { ROCK: 0, PAPER: 0, SCISSORS: 0 };
+      const winning = (data.minorityChoice?.toLowerCase() as RPSChoice) || 'scissors';
+      const passed = !data.isTie && prelimChoice === winning;
+      setPrelimResult({
+        rock: tallies.ROCK,
+        paper: tallies.PAPER,
+        scissors: tallies.SCISSORS,
+        winningHand: winning,
+        userPassed: data.isTie ? true : passed,
+      });
+      if (data.isTie) {
+        sound.playTick();
+        setRewardModal({
+          title: '예선 동률',
+          message: '최소 그룹이 동률이라 재라운드가 진행됩니다.',
+          icon: '🤝',
+        });
+      } else if (passed) sound.playWin();
+      else sound.playLose();
+    });
+
+    const offBracket = gameSocket.on('BRACKET_CREATED', () => {
+      setCurrentStepIndex(2);
+      navigateTo('tournament_bracket');
+    });
+
+    const offMatch = gameSocket.on('TOURNAMENT_MATCH_READY', (payload) => {
+      const data = payload as {
+        matchId: string;
+        player1Id: string;
+        player2Id: string;
+        endsAt: number;
+        roundLabel?: string;
+      };
+      // 본선 UI는 기존 단계 흐름 유지 — 내 경기면 선택 가능하도록 힌트
+      if (data.roundLabel?.includes('준결승')) setCurrentStepIndex(6);
+      else if (data.roundLabel === '결승') setCurrentStepIndex(7);
+    });
+
+    const offDone = gameSocket.on('TOURNAMENT_COMPLETED', () => {
+      setCurrentStepIndex(8);
+    });
+
+    return () => {
+      offStarted();
+      offResult();
+      offBracket();
+      offMatch();
+      offDone();
+    };
+  }, [activeTournament?.id, prelimChoice]);
 
   // Move to next stage
   const handleNextStep = () => {

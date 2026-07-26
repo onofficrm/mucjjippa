@@ -1,10 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sparkles, ArrowLeft, Lock, Check } from 'lucide-react';
 import { useGame } from '../context/GameContext';
-import { mockTitles } from '../data/mockData';
+import { shopService } from '../services/shopService';
+import type { Title } from '../types';
 
 export const TitlePage: React.FC = () => {
   const { goBack, user, equipTitle } = useGame();
+  const [titles, setTitles] = useState<Title[]>([]);
+
+  useEffect(() => {
+    shopService.getTitles().then(setTitles).catch(() => setTitles([]));
+  }, []);
 
   return (
     <div className="space-y-5 pb-20 md:pb-8">
@@ -33,7 +39,7 @@ export const TitlePage: React.FC = () => {
 
       {/* Title List */}
       <div className="space-y-2.5">
-        {mockTitles.map((t) => {
+        {titles.map((t) => {
           const isEquipped = user.title === t.name;
 
           return (

@@ -1,0 +1,14 @@
+# 프로덕션/스테이징 오버라이드
+# 외부에는 web만 노출하는 구성을 권장합니다 (server/DB/redis는 내부 네트워크).
+
+services:
+  server:
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      NODE_ENV: production
+      EXPOSE_API_DOCS: ${EXPOSE_API_DOCS:-false}
+      RUN_SEED: ${RUN_SEED:-false}
+      SEED_MODE: catalog
+  web:
+    ports:
+      - "${WEB_PORT:-80}:80"

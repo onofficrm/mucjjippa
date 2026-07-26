@@ -10,7 +10,8 @@ export const GameResultPage: React.FC = () => {
   if (!activeMatch) return null;
 
   const isWin = activeMatch.matchWinner === 'player' || activeMatch.roundResult === 'win';
-  const rewardPoints = isWin ? activeMatch.stakePoints * 1.9 : 0;
+  // 보상 금액은 서버 정산값을 그대로 사용한다.
+  const rewardPoints = isWin ? activeMatch.rewardPoints ?? activeMatch.stakePoints * 2 : 0;
 
   const handleNextOpponent = () => {
     if (selectedRoom) {

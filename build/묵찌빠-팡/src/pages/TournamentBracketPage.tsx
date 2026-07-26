@@ -1,14 +1,62 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { GitBranch, Trophy, Tv, ArrowLeft, Search, Eye, Filter, Sparkles, UserCheck, Flame } from 'lucide-react';
 import { useGame } from '../context/GameContext';
-import { mockBracketData, ExpandedBracketNode } from '../data/mockData';
+import { ExpandedBracketNode } from '../data/mockData';
+import { tournamentService } from '../services/tournamentService';
+import { gameSocket } from '../api/socket';
 import { sound } from '../utils/audio';
 
 export const TournamentBracketPage: React.FC = () => {
-  const { navigateTo, goBack, setSpectatingMatch } = useGame();
+  const { navigateTo, goBack, setSpectatingMatch, activeTournament } = useGame();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedRoundFilter, setSelectedRoundFilter] = useState<string>('all');
+  const [bracketData, setBracketData] = useState<ExpandedBracketNode[]>([]);
+  const [title, setTitle] = useState('실시간 공식 대진표');
+
+  const loadBracket = async () => {
+    if (!activeTournament) return;
+    try {
+      const data = await tournamentService.getBracket(activeTournament.id);
+      const nodes = (data.nodes ?? data.rounds?.flatMap((r) => r.matches) ?? []) as Array<{
+        id: string;
+        roundName: string;
+        roundKey?: string;
+        tableNo?: number;
+        isLive?: boolean;
+        isCompleted?: boolean;
+        spectators?: number;
+        player1: ExpandedBracketNode['player1'] | null;
+        player2: ExpandedBracketNode['player2'] | null;
+      }>;
+      setBracketData(
+        nodes.map((n, index) => ({
+          id: n.id,
+          roundKey: n.roundKey ?? '16',
+          roundName: n.roundName,
+          tableNo: n.tableNo ?? index + 1,
+          isLive: Boolean(n.isLive),
+          isCompleted: Boolean(n.isCompleted),
+          spectators: n.spectators,
+          player1: n.player1 ?? { name: '대기', avatar: '❓' },
+          player2: n.player2 ?? { name: '대기', avatar: '❓' },
+        }))
+      );
+      setTitle(activeTournament.title);
+    } catch {
+      setBracketData([]);
+    }
+  };
+
+  useEffect(() => {
+    void loadBracket();
+    if (!activeTournament) return;
+    tournamentService.subscribe(activeTournament.id);
+    const off = gameSocket.on('BRACKET_UPDATED', () => {
+      void loadBracket();
+    });
+    return () => off();
+  }, [activeTournament?.id]);
 
   const roundFilterOptions = [
     { key: 'all', label: '전체 대진표' },
@@ -18,11 +66,12 @@ export const TournamentBracketPage: React.FC = () => {
     { key: '16', label: '16강' },
     { key: '8', label: '8강' },
     { key: '4', label: '준결승(4강)' },
+    { key: '3rd', label: '3·4위' },
     { key: 'final', label: '🏆 결승전' },
   ];
 
   // Filter matches
-  const filteredMatches = mockBracketData.filter((match) => {
+  const filteredMatches = bracketData.filter((match) => {
     const matchesRound = selectedRoundFilter === 'all' || match.roundKey === selectedRoundFilter;
     const matchesQuery =
       searchQuery.trim() === '' ||
@@ -36,15 +85,19 @@ export const TournamentBracketPage: React.FC = () => {
   const handleSpectateMatch = (match: ExpandedBracketNode) => {
     sound.playClick();
     setSpectatingMatch({
+      matchId: match.id,
+      id: match.id,
       player1: match.player1.name,
       player2: match.player2.name,
       p1Avatar: match.player1.avatar,
       p2Avatar: match.player2.avatar,
-      p1Choice: 'rock',
-      p2Choice: 'scissors',
+      p1Choice: null,
+      p2Choice: null,
       p1Score: match.player1.score || 0,
       p2Score: match.player2.score || 0,
       status: match.roundName,
+      isDemo: false,
+      kind: 'TOURNAMENT',
     });
     navigateTo('spectate');
   };
@@ -76,7 +129,7 @@ export const TournamentBracketPage: React.FC = () => {
 
         <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-black mb-2">
           <GitBranch className="w-3.5 h-3.5 text-cyan-400" />
-          128강 실시간 공식 대진표
+          {title}
         </div>
 
         <h2 className="text-xl sm:text-2xl font-black text-white">
@@ -150,7 +203,7 @@ export const TournamentBracketPage: React.FC = () => {
             <div className="text-[11px] font-black text-slate-400 text-center pb-1 border-b border-slate-800">
               8강 (QUARTER FINALS)
             </div>
-            {mockBracketData
+            {bracketData
               .filter((m) => m.roundKey === '8')
               .map((match) => (
                 <div
@@ -200,7 +253,7 @@ export const TournamentBracketPage: React.FC = () => {
             <div className="text-[11px] font-black text-purple-400 text-center pb-1 border-b border-slate-800">
               준결승 (SEMI FINALS)
             </div>
-            {mockBracketData
+            {bracketData
               .filter((m) => m.roundKey === '4')
               .map((match) => (
                 <div
@@ -250,7 +303,7 @@ export const TournamentBracketPage: React.FC = () => {
             <div className="text-[11px] font-black text-amber-400 text-center pb-1 border-b border-slate-800 mb-4">
               🏆 최종 결승전 (FINAL)
             </div>
-            {mockBracketData
+            {bracketData
               .filter((m) => m.roundKey === 'final')
               .map((match) => (
                 <div

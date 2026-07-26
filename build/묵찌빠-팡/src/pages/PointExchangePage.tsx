@@ -1,10 +1,26 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Ticket, ArrowLeft, Coins, Check } from 'lucide-react';
 import { useGame } from '../context/GameContext';
-import { mockCoupons } from '../data/mockData';
+import { shopService } from '../services/shopService';
+import type { ShopItem } from '../types';
 
 export const PointExchangePage: React.FC = () => {
-  const { goBack, user, buyCoupon } = useGame();
+  const { goBack, user, buyShopItem } = useGame();
+  const [coupons, setCoupons] = useState<ShopItem[]>([]);
+
+  const refreshCoupons = () =>
+    shopService
+      .getItems()
+      .then((items) => setCoupons(items.filter((item) => item.category === 'coupon')))
+      .catch(() => setCoupons([]));
+
+  useEffect(() => {
+    void refreshCoupons();
+  }, []);
+
+  const handleExchange = async (coupon: ShopItem) => {
+    if (await buyShopItem(coupon)) await refreshCoupons();
+  };
 
   return (
     <div className="space-y-5 pb-20 md:pb-8">
@@ -33,32 +49,33 @@ export const PointExchangePage: React.FC = () => {
 
       {/* Coupons Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-        {mockCoupons.map((cp) => (
+        {coupons.map((cp) => (
           <div
             key={cp.id}
             className="bg-slate-900/90 border border-slate-800 p-4 rounded-3xl shadow-xl flex items-center justify-between gap-3"
           >
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-3xl shrink-0">
-                {cp.image}
+                {cp.icon}
               </div>
               <div>
-                <span className="text-[10px] font-bold text-amber-400">{cp.brand}</span>
-                <h3 className="font-extrabold text-xs text-white leading-snug">{cp.title}</h3>
-                <span className="text-[10px] text-slate-500 mt-0.5 block">잔여 수량: {cp.stock}개</span>
+                <span className="text-[10px] font-bold text-amber-400">묵찌빠 팡</span>
+                <h3 className="font-extrabold text-xs text-white leading-snug">{cp.name}</h3>
+                <span className="text-[10px] text-slate-500 mt-0.5 block">{cp.description}</span>
               </div>
             </div>
 
             <div className="flex flex-col items-end shrink-0">
               <span className="font-black text-xs text-amber-400 mb-2">
-                {cp.pricePoints.toLocaleString()} P
+                {cp.price.toLocaleString()} P
               </span>
               <button
-                onClick={() => buyCoupon(cp)}
+                onClick={() => handleExchange(cp)}
+                disabled={cp.isOwned}
                 className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md active:scale-95 transition-all"
                 id={`exchange-coupon-btn-${cp.id}`}
               >
-                교환하기
+                {cp.isOwned ? '교환 완료' : '교환하기'}
               </button>
             </div>
           </div>

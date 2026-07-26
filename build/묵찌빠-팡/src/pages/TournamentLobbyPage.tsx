@@ -17,20 +17,25 @@ import {
   Swords,
 } from 'lucide-react';
 import { useGame } from '../context/GameContext';
-import { mockTournaments } from '../data/mockData';
 import { Tournament, TournamentStatus } from '../types';
 import { TournamentDetailModal } from '../components/TournamentDetailModal';
+import { tournamentService } from '../services/tournamentService';
 import { sound } from '../utils/audio';
 
 export const TournamentLobbyPage: React.FC = () => {
   const { navigateTo, setActiveTournament, setRewardModal } = useGame();
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState<boolean>(false);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
 
   // Virtual game simulation replay state
   const [virtualHandP1, setVirtualHandP1] = useState<'rock' | 'paper' | 'scissors'>('rock');
   const [virtualHandP2, setVirtualHandP2] = useState<'rock' | 'paper' | 'scissors'>('scissors');
   const [simText, setSimText] = useState<string>('⚡ 4강 1경기: [승리의신] vs [네온닌자] 진행 중...');
+
+  useEffect(() => {
+    void tournamentService.getTournaments().then(setTournaments).catch(() => setTournaments([]));
+  }, []);
 
   useEffect(() => {
     const choices: ('rock' | 'paper' | 'scissors')[] = ['rock', 'paper', 'scissors'];
@@ -192,7 +197,7 @@ export const TournamentLobbyPage: React.FC = () => {
           <span className="text-[10px] text-slate-400">카드를 터치하여 상세 규칙 확인</span>
         </div>
 
-        {mockTournaments.map((tour) => (
+        {tournaments.map((tour) => (
           <div
             key={tour.id}
             onClick={() => handleOpenDetail(tour)}

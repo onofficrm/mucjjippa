@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Coins, ArrowLeft, ArrowUpRight, ArrowDownRight, Tag } from 'lucide-react';
 import { useGame } from '../context/GameContext';
-import { mockPointLogs } from '../data/mockData';
 
 type LogCategoryFilter = 'all' | 'match' | 'tournament' | 'ad' | 'shop' | 'admin';
 
@@ -123,12 +122,14 @@ export const PointHistoryPage: React.FC = () => {
                       isGain ? 'text-emerald-400' : 'text-rose-400'
                     }`}
                   >
-                    {isGain ? `+${log.amount.toLocaleString()}` : log.amount.toLocaleString()} P
+                    {isGain ? `+${log.amount.toLocaleString()}` : log.amount.toLocaleString()}{' '}
+                    {log.currency === 'tickets' ? '장' : 'P'}
                   </span>
                 </div>
 
                 <span className="text-[10px] text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded border border-slate-800 mt-0.5">
-                  거래 후 잔액: {log.balance ? log.balance.toLocaleString() : user.points.toLocaleString()} P
+                  거래 후 잔액:{' '}
+                  {log.balance.toLocaleString()} {log.currency === 'tickets' ? '장' : 'P'}
                 </span>
               </div>
             </div>

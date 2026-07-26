@@ -1,83 +1,114 @@
-import { PointHistoryLog } from '../types';
-import { mockPointHistory } from '../data/mockData';
+import { Currency, WalletBalance, WalletTransaction } from '../types';
+import { apiClient } from '../api';
+import { createTransactionId } from '../mocks/helpers';
+import { walletStore } from '../stores/walletStore';
 
-export interface WalletService {
-  getBalance: () => Promise<{ points: number; tickets: number }>;
-  getPointHistory: () => Promise<PointHistoryLog[]>;
-  topUpPoints: (amount: number, reason: string) => Promise<{ points: number }>;
-  spendPoints: (amount: number, reason: string) => Promise<{ points: number }>;
-  exchangeTickets: (ticketCount: number, costPoints: number) => Promise<{ points: number; tickets: number }>;
+interface ServerWallet {
+  id: string;
+  points: number;
+  tickets: number;
+  version: number;
+  updatedAt: string;
 }
 
-class MockWalletService implements WalletService {
-  private points: number = 100000;
-  private tickets: number = 13;
-  private history: PointHistoryLog[] = [...mockPointHistory];
+interface ServerTransaction {
+  id: string;
+  transactionKey: string;
+  asset: 'POINT' | 'TICKET';
+  reason: string;
+  direction: 'CREDIT' | 'DEBIT';
+  amount: number;
+  balanceAfter: number;
+  description?: string | null;
+  createdAt: string;
+}
 
-  public async getBalance(): Promise<{ points: number; tickets: number }> {
-    await new Promise((res) => setTimeout(res, 80));
-    return { points: this.points, tickets: this.tickets };
+interface ServerMutationResult {
+  duplicated: boolean;
+  wallet: ServerWallet;
+  transactions?: ServerTransaction[];
+}
+
+function transactionCategory(reason: string): WalletTransaction['category'] {
+  if (reason.startsWith('MATCH_')) return 'match';
+  if (reason.startsWith('TOURNAMENT_')) return 'tournament';
+  if (reason === 'AD_REWARD') return 'ad';
+  if (reason === 'SHOP_PURCHASE' || reason === 'TICKET_EXCHANGE') return 'shop';
+  if (reason.startsWith('ADMIN_')) return 'admin';
+  return 'charge';
+}
+
+function mapTransaction(transaction: ServerTransaction): WalletTransaction {
+  return {
+    id: transaction.id,
+    title: transaction.description ?? transaction.reason,
+    amount: transaction.amount,
+    type: transaction.direction === 'CREDIT' ? 'earn' : 'spend',
+    date: new Date(transaction.createdAt).toLocaleString(),
+    category: transactionCategory(transaction.reason),
+    balance: transaction.balanceAfter,
+    currency: transaction.asset === 'TICKET' ? 'tickets' : 'points',
+  };
+}
+
+function applyWallet(wallet: ServerWallet): WalletBalance {
+  return walletStore.applyServerState({ points: wallet.points, tickets: wallet.tickets });
+}
+
+class WalletServiceImpl {
+  public async getWallet(): Promise<WalletBalance> {
+    const wallet = await apiClient.get<ServerWallet>('/wallet');
+    return applyWallet(wallet);
   }
 
-  public async getPointHistory(): Promise<PointHistoryLog[]> {
-    await new Promise((res) => setTimeout(res, 120));
-    return [...this.history];
+  public async getBalance(): Promise<WalletBalance> {
+    return this.getWallet();
   }
 
-  public async topUpPoints(amount: number, reason: string): Promise<{ points: number }> {
-    await new Promise((res) => setTimeout(res, 150));
-    this.points += amount;
-    this.history.unshift({
-      id: `log_${Date.now()}`,
-      title: reason,
-      amount: amount,
-      type: 'earn',
-      date: new Date().toLocaleString(),
-      category: 'charge',
-      balance: this.points,
+  public async getTransactions(): Promise<WalletTransaction[]> {
+    const data = await apiClient.get<{ items: ServerTransaction[] }>(
+      '/wallet/transactions',
+      { query: { limit: 100 } }
+    );
+    const transactions = data.items.map(mapTransaction);
+    walletStore.replaceServerTransactions(transactions);
+    return transactions;
+  }
+
+  public async exchangeTickets(quantity: number, transactionKey = createTransactionId('ticket-exchange')) {
+    const result = await apiClient.post<ServerMutationResult>('/wallet/exchange-ticket', {
+      quantity,
+      transactionKey,
     });
-    return { points: this.points };
+    applyWallet(result.wallet);
+    await this.getTransactions();
+    return result;
   }
 
-  public async spendPoints(amount: number, reason: string): Promise<{ points: number }> {
-    await new Promise((res) => setTimeout(res, 150));
-    if (this.points < amount) {
-      throw new Error('포인트가 부족합니다.');
-    }
-    this.points -= amount;
-    this.history.unshift({
-      id: `log_${Date.now()}`,
-      title: reason,
-      amount: -amount,
-      type: 'spend',
-      date: new Date().toLocaleString(),
-      category: 'shop',
-      balance: this.points,
-    });
-    return { points: this.points };
-  }
-
-  public async exchangeTickets(
-    ticketCount: number,
-    costPoints: number
-  ): Promise<{ points: number; tickets: number }> {
-    await new Promise((res) => setTimeout(res, 150));
-    if (this.points < costPoints) {
-      throw new Error('포인트가 부족합니다.');
-    }
-    this.points -= costPoints;
-    this.tickets += ticketCount;
-    this.history.unshift({
-      id: `log_${Date.now()}`,
-      title: `토너먼트 티켓 ${ticketCount}장 교환`,
-      amount: -costPoints,
-      type: 'spend',
-      date: new Date().toLocaleString(),
-      category: 'shop',
-      balance: this.points,
-    });
-    return { points: this.points, tickets: this.tickets };
+  public async adminMutate(input: {
+    targetUserId: string;
+    asset: Currency;
+    amount: number;
+    credit: boolean;
+    reason: string;
+    transactionKey?: string;
+  }) {
+    const transactionKey = input.transactionKey ?? createTransactionId('admin-wallet');
+    const result = await apiClient.post<ServerMutationResult>(
+      `/admin/wallet/${input.credit ? 'credit' : 'debit'}`,
+      {
+        userId: input.targetUserId,
+        asset: input.asset === 'tickets' ? 'TICKET' : 'POINT',
+        amount: input.amount,
+        transactionKey,
+        reason: input.reason,
+      },
+      { requestId: transactionKey }
+    );
+    applyWallet(result.wallet);
+    await this.getTransactions();
+    return result;
   }
 }
 
-export const walletService = new MockWalletService();
+export const walletService = new WalletServiceImpl();

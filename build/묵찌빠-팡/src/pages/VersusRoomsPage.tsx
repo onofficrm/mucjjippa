@@ -1,24 +1,35 @@
-import React, { useState } from 'react';
-import { Swords, Filter, Plus, ShieldAlert } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Swords, ShieldAlert } from 'lucide-react';
 import { useGame } from '../context/GameContext';
 import { mockGameRooms } from '../data/mockData';
 import { GameModeCard } from '../components/GameModeCard';
+import { matchService } from '../services/matchService';
+import type { GameRoom } from '../types';
 
 export const VersusRoomsPage: React.FC = () => {
-  const { user, startMatchmaking, navigateTo } = useGame();
+  const { user, navigateTo } = useGame();
   const [filterTier, setFilterTier] = useState<string>('all');
+  const [rooms, setRooms] = useState<GameRoom[]>(mockGameRooms.filter((r) => [10, 100, 300].includes(r.entryFee)));
 
-  const filteredRooms = mockGameRooms.filter((room) => {
+  useEffect(() => {
+    matchService
+      .getGameRooms()
+      .then((serverRooms) => {
+        if (serverRooms.length > 0) setRooms(serverRooms);
+      })
+      .catch(() => null);
+  }, []);
+
+  const filteredRooms = rooms.filter((room) => {
     if (filterTier === 'all') return true;
     if (filterTier === 'vip') return room.isVip;
-    if (filterTier === 'beginner') return room.entryFee <= 5000;
-    if (filterTier === 'pro') return room.entryFee > 5000 && !room.isVip;
+    if (filterTier === 'beginner') return room.entryFee <= 100;
+    if (filterTier === 'pro') return room.entryFee >= 300 && !room.isVip;
     return true;
   });
 
   return (
     <div className="space-y-5 pb-20 md:pb-8">
-      {/* Header Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 p-4 rounded-3xl">
         <div>
           <h2 className="text-xl font-black text-white flex items-center gap-2">
@@ -26,11 +37,10 @@ export const VersusRoomsPage: React.FC = () => {
             1:1 대전방 선택
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            원하는 포인트 배팅 금액의 방에 입장하여 실시간 상대를 찾아 승리해보세요.
+            10P / 100P 단판 실시간 매칭, 300P는 3개를 순서대로 내는 전략 대전입니다.
           </p>
         </div>
 
-        {/* Quick Balance Status */}
         <div className="flex items-center gap-2 bg-slate-950 p-2.5 rounded-2xl border border-slate-800">
           <span className="text-xs text-slate-400 font-medium">내 포인트:</span>
           <span className="text-sm font-black text-amber-400">
@@ -45,13 +55,11 @@ export const VersusRoomsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
         {[
           { id: 'all', label: '전체 게임방' },
-          { id: 'beginner', label: '입문/초보방 (1k~5k)' },
-          { id: 'pro', label: '고수 배틀방 (20k)' },
-          { id: 'vip', label: '👑 마스터 VIP (100k)' },
+          { id: 'beginner', label: '입문 (10~100P)' },
+          { id: 'pro', label: '전략 (300P)' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -67,20 +75,18 @@ export const VersusRoomsPage: React.FC = () => {
         ))}
       </div>
 
-      {/* Room Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {filteredRooms.map((room) => (
           <GameModeCard key={room.id} room={room} />
         ))}
       </div>
 
-      {/* Notice Banner */}
       <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 text-xs text-slate-400 flex items-start gap-2.5">
         <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
         <p>
-          모든 1:1 대전은 승자가 배팅 포인트의 1.9배를 수령하게 됩니다. (수수료 5% 제외)
+          실시간 대전은 서버가 승패를 판정하며, 상대 패는 결과 공개 전까지 보이지 않습니다.
           <br />
-          연승 지속 시 추가 경험치와 칭호 해금 혜택이 부여됩니다!
+          승리 시 참가비의 2배 포인트가 지급되고, 매칭 확정 전에 취소하면 참가비는 차감되지 않습니다.
         </p>
       </div>
     </div>

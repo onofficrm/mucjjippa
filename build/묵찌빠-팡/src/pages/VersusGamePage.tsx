@@ -1,23 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { Sparkles, Trophy, Zap, ShieldAlert, Lock, Swords, Flame, RotateCcw, ArrowRight, Share2, Coins } from 'lucide-react';
 import { useGame } from '../context/GameContext';
-import { RPSChoice } from '../types';
+import { MatchChoice, RPSChoice } from '../types';
 import { sound } from '../utils/audio';
 import { ShareResultModal } from '../components/ShareResultModal';
 
 type GameStep = 'MATCH_FOUND' | 'COUNTDOWN' | 'SELECTION' | 'SLOT_REEL' | 'SHOWDOWN' | 'RESULT';
 
+const RANDOM_HANDS: MatchChoice[] = ['rock', 'paper', 'scissors'];
+
 export const VersusGamePage: React.FC = () => {
-  const { activeMatch, playRPSRound, user, startMatchmaking, selectedRoom, navigateTo } = useGame();
+  const {
+    activeMatch,
+    playRPSRound,
+    playStrategyRound,
+    strategyRound,
+    user,
+    startMatchmaking,
+    selectedRoom,
+    navigateTo,
+  } = useGame();
 
   const [step, setStep] = useState<GameStep>('MATCH_FOUND');
   const [countdownNum, setCountdownNum] = useState<number>(3);
   const [selectionTimer, setSelectionTimer] = useState<number>(5);
   const [selectedHand, setSelectedHand] = useState<RPSChoice>(null);
 
-  // 300P Strategic Match 3-slot choices state
+  // 300P Strategic Match — 서버 STRATEGY_* 이벤트로 진행된다.
   const isStrategic300P = activeMatch?.stakePoints === 300 || activeMatch?.roomId === 'room_300p';
   const [presetSlots, setPresetSlots] = useState<RPSChoice[]>([null, null, null]);
+  const strategyPhase = strategyRound?.phase ?? null;
+  const canPickSlots = strategyPhase === 'SUBMITTING';
 
   // Slot Reel state
   const [slotReelHandP1, setSlotReelHandP1] = useState<RPSChoice>('rock');
@@ -29,8 +42,55 @@ export const VersusGamePage: React.FC = () => {
   // Share Modal State
   const [shareModalOpen, setShareModalOpen] = useState(false);
 
+  /* ── 300P 전략 대전: 서버 이벤트가 단계를 결정한다 ───────────────────────── */
+  useEffect(() => {
+    if (!isStrategic300P || !strategyRound) return;
+    // 새 세트가 시작되면 슬롯을 비운다.
+    setPresetSlots([null, null, null]);
+    setSelectedHand(null);
+  }, [isStrategic300P, strategyRound?.setNumber]);
+
+  useEffect(() => {
+    if (!isStrategic300P || !strategyPhase) return;
+    if (strategyPhase === 'SUBMITTING') {
+      sound.playCountdownGo();
+      setStep('SELECTION');
+    } else if (strategyPhase === 'LOCKED') {
+      setStep('SLOT_REEL');
+    } else if (strategyPhase === 'REVEALING') {
+      setStep('SHOWDOWN');
+    } else {
+      setStep('RESULT');
+    }
+  }, [isStrategic300P, strategyPhase]);
+
+  // 제한시간은 서버 시각(endsAt) 기준
+  useEffect(() => {
+    if (!isStrategic300P) return;
+    const endsAt = strategyRound?.endsAt ?? null;
+    if (!endsAt) return;
+    const tick = () => {
+      setSelectionTimer(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
+    };
+    tick();
+    const interval = setInterval(tick, 250);
+    return () => clearInterval(interval);
+  }, [isStrategic300P, strategyRound?.endsAt]);
+
+  // 공개되는 순번마다 임팩트 연출
+  useEffect(() => {
+    if (!isStrategic300P || strategyPhase !== 'REVEALING') return;
+    const last = strategyRound?.reveals[strategyRound.reveals.length - 1];
+    if (!last) return;
+    if (last.outcome === 'win') sound.playWin();
+    else if (last.outcome === 'loss') sound.playLose();
+    else sound.playTick();
+  }, [isStrategic300P, strategyPhase, strategyRound?.reveals.length]);
+
   useEffect(() => {
     if (!activeMatch) return;
+    // 전략 대전은 선택·공개·결과를 서버가 주도한다 (로컬 타이머 미사용).
+    if (isStrategic300P && step !== 'MATCH_FOUND' && step !== 'COUNTDOWN') return;
 
     // 1. MATCH FOUND -> COUNTDOWN (after 1.8s)
     if (step === 'MATCH_FOUND') {
@@ -48,6 +108,8 @@ export const VersusGamePage: React.FC = () => {
         setCountdownNum((prev) => {
           if (prev <= 1) {
             clearInterval(interval);
+            // 전략 대전은 STRATEGY_ROUND_STARTED 를 기다린다.
+            if (isStrategic300P) return 1;
             sound.playCountdownGo();
             setStep('SELECTION');
             setSelectionTimer(5);
@@ -67,19 +129,8 @@ export const VersusGamePage: React.FC = () => {
           if (prev <= 1) {
             clearInterval(interval);
 
-            let finalHand = selectedHand;
-            if (isStrategic300P) {
-              // Auto fill any empty slots randomly
-              const choices: RPSChoice[] = ['rock', 'paper', 'scissors'];
-              const filledSlots = presetSlots.map((s) => s || choices[Math.floor(Math.random() * choices.length)]);
-              setPresetSlots(filledSlots);
-              const roundIndex = (activeMatch.round - 1) % 3;
-              finalHand = filledSlots[roundIndex];
-              setSelectedHand(finalHand);
-            } else if (!finalHand) {
-              const choices: RPSChoice[] = ['rock', 'paper', 'scissors'];
-              finalHand = choices[Math.floor(Math.random() * choices.length)];
-              setSelectedHand(finalHand);
+            if (!selectedHand) {
+              setSelectedHand(RANDOM_HANDS[Math.floor(Math.random() * RANDOM_HANDS.length)]);
             }
 
             // Move to SLOT_REEL spin phase
@@ -142,7 +193,7 @@ export const VersusGamePage: React.FC = () => {
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [step, activeMatch?.round]);
+  }, [step, activeMatch?.round, isStrategic300P]);
 
   if (!activeMatch) return null;
 
@@ -162,30 +213,35 @@ export const VersusGamePage: React.FC = () => {
   };
 
   const handleSelectHand = (choice: RPSChoice) => {
+    if (isStrategic300P) {
+      if (!canPickSlots || !choice) return;
+      sound.playSelectRPS();
+
+      const next = [...presetSlots];
+      const emptyIdx = next.findIndex((slot) => slot === null);
+      if (emptyIdx !== -1) {
+        next[emptyIdx] = choice;
+      } else {
+        // If all 3 full, replace last slot
+        next[2] = choice;
+      }
+      setPresetSlots(next);
+      setSelectedHand(choice);
+
+      // 3개가 모두 채워지면 순서 그대로 서버에 제출한다 (마감 전까지 재제출 가능).
+      if (next.every((slot) => slot !== null)) {
+        playStrategyRound(next as MatchChoice[]);
+      }
+      return;
+    }
+
     if (step !== 'SELECTION') return;
     sound.playSelectRPS();
-
-    if (isStrategic300P) {
-      setPresetSlots((prev) => {
-        const next = [...prev];
-        const emptyIdx = next.findIndex((slot) => slot === null);
-        if (emptyIdx !== -1) {
-          next[emptyIdx] = choice;
-        } else {
-          // If all 3 full, replace last slot
-          next[2] = choice;
-        }
-        const roundIdx = (activeMatch.round - 1) % 3;
-        setSelectedHand(next[roundIdx] || choice);
-        return next;
-      });
-    } else {
-      setSelectedHand(choice);
-    }
+    setSelectedHand(choice);
   };
 
   const handleClearSlot = (index: number) => {
-    if (step !== 'SELECTION' || !isStrategic300P) return;
+    if (!isStrategic300P || !canPickSlots) return;
     sound.playClick();
     setPresetSlots((prev) => {
       const next = [...prev];
@@ -195,27 +251,30 @@ export const VersusGamePage: React.FC = () => {
   };
 
   const handleResetSlots = () => {
-    if (step !== 'SELECTION' || !isStrategic300P) return;
+    if (!isStrategic300P || !canPickSlots) return;
     sound.playClick();
     setPresetSlots([null, null, null]);
     setSelectedHand(null);
   };
 
+  /** 전략 대전: 남은 슬롯은 랜덤으로 채워 즉시 확정 제출 */
   const handleConfirmSlots = () => {
-    if (step !== 'SELECTION') return;
-    sound.playClick();
-
     if (isStrategic300P) {
-      const choices: RPSChoice[] = ['rock', 'paper', 'scissors'];
-      const filledSlots = presetSlots.map((s) => s || choices[Math.floor(Math.random() * choices.length)]);
-      setPresetSlots(filledSlots);
-      const roundIdx = (activeMatch.round - 1) % 3;
-      setSelectedHand(filledSlots[roundIdx]);
-    } else if (!selectedHand) {
-      const choices: RPSChoice[] = ['rock', 'paper', 'scissors'];
-      setSelectedHand(choices[Math.floor(Math.random() * choices.length)]);
+      if (!canPickSlots) return;
+      sound.playClick();
+      const filled = presetSlots.map(
+        (slot) => slot ?? RANDOM_HANDS[Math.floor(Math.random() * RANDOM_HANDS.length)]
+      ) as MatchChoice[];
+      setPresetSlots(filled);
+      playStrategyRound(filled);
+      return;
     }
 
+    if (step !== 'SELECTION') return;
+    sound.playClick();
+    if (!selectedHand) {
+      setSelectedHand(RANDOM_HANDS[Math.floor(Math.random() * RANDOM_HANDS.length)]);
+    }
     setStep('SLOT_REEL');
   };
 
@@ -229,9 +288,43 @@ export const VersusGamePage: React.FC = () => {
     }
   };
 
-  const isWin = activeMatch.matchWinner === 'player' || activeMatch.roundResult === 'win';
-  const isLoss = activeMatch.matchWinner === 'opponent' || activeMatch.roundResult === 'loss';
-  const isDraw = activeMatch.roundResult === 'draw';
+  const strategyReveal = isStrategic300P
+    ? strategyRound?.reveals[strategyRound.reveals.length - 1] ?? null
+    : null;
+  const strategySettled = strategyPhase === 'SET_RESULT' || strategyPhase === 'FINISHED';
+  const strategySubmitted = (strategyRound?.submittedChoices.length ?? 0) === 3;
+
+  let isWin: boolean;
+  let isLoss: boolean;
+  let isDraw: boolean;
+  if (isStrategic300P) {
+    isWin = strategySettled
+      ? strategyRound?.matchWinner === 'player'
+      : strategyReveal?.outcome === 'win';
+    isLoss = strategySettled
+      ? strategyRound?.matchWinner === 'opponent'
+      : strategyReveal?.outcome === 'loss';
+    isDraw = strategySettled
+      ? Boolean(strategyRound?.isDraw)
+      : strategyReveal?.outcome === 'draw';
+  } else {
+    isWin = activeMatch.matchWinner === 'player' || activeMatch.roundResult === 'win';
+    isLoss = activeMatch.matchWinner === 'opponent' || activeMatch.roundResult === 'loss';
+    isDraw = activeMatch.roundResult === 'draw';
+  }
+
+  const myShownHand: RPSChoice = isStrategic300P
+    ? strategyReveal?.playerChoice ?? null
+    : selectedHand;
+  const opponentShownHand: RPSChoice = isStrategic300P
+    ? strategyReveal?.opponentChoice ?? null
+    : activeMatch.opponentChoice;
+  const rewardDisplay =
+    (isStrategic300P ? strategyRound?.rewardPoints : activeMatch.rewardPoints) ||
+    activeMatch.stakePoints * 2;
+  // 전략 대전은 무승부 시 서버가 새 세트를 시작하므로 종료 화면은 FINISHED 에서만 노출
+  const showPostGame = isStrategic300P ? strategyPhase === 'FINISHED' : step === 'RESULT';
+  const pickDisabled = isStrategic300P ? !canPickSlots : step !== 'SELECTION';
 
   return (
     <div className="flex flex-col justify-between min-h-[calc(100vh-140px)] max-w-xl mx-auto py-2 px-1 relative">
@@ -369,7 +462,7 @@ export const VersusGamePage: React.FC = () => {
               )}
               {(step === 'SHOWDOWN' || step === 'RESULT') && (
                 <span className={isLoss ? 'scale-125 transition-transform' : ''}>
-                  {getRPSHand(activeMatch.opponentChoice)}
+                  {getRPSHand(opponentShownHand)}
                 </span>
               )}
               {step !== 'SLOT_REEL' && step !== 'SHOWDOWN' && step !== 'RESULT' && (
@@ -406,13 +499,23 @@ export const VersusGamePage: React.FC = () => {
             {step === 'SLOT_REEL' && (
               <div className="flex flex-col items-center">
                 <span className="text-xs font-black text-amber-400 animate-spin">🎰</span>
-                <span className="text-xs font-extrabold text-amber-300 mt-1">패 회전 공개 중...</span>
+                <span className="text-xs font-extrabold text-amber-300 mt-1">
+                  {isStrategic300P ? '양쪽 선택 확정! 공개 준비 중...' : '패 회전 공개 중...'}
+                </span>
               </div>
             )}
 
             {step === 'SHOWDOWN' && (
-              <div className="text-2xl font-black text-amber-400 animate-collide">
-                ⚡ IMPACT!
+              <div className="flex flex-col items-center">
+                <div className="text-2xl font-black text-amber-400 animate-collide">
+                  ⚡ IMPACT!
+                </div>
+                {isStrategic300P && strategyReveal && (
+                  <span className="text-[10px] font-black text-cyan-300 mt-1">
+                    {strategyReveal.index}번째 공개 · {strategyRound?.revealedPlayerWins ?? 0}승{' '}
+                    {strategyRound?.revealedOpponentWins ?? 0}패
+                  </span>
+                )}
               </div>
             )}
 
@@ -421,7 +524,7 @@ export const VersusGamePage: React.FC = () => {
                 {isWin && (
                   <div className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 font-black text-sm px-4 py-1.5 rounded-xl shadow-lg shadow-amber-500/40 animate-bounce flex items-center gap-1">
                     <Trophy className="w-4 h-4 fill-slate-950" />
-                    WIN! (+{(activeMatch.stakePoints * 1.9).toLocaleString()}P)
+                    WIN! (+{rewardDisplay.toLocaleString()}P)
                   </div>
                 )}
                 {isLoss && (
@@ -450,7 +553,7 @@ export const VersusGamePage: React.FC = () => {
               )}
               {(step === 'SHOWDOWN' || step === 'RESULT') && (
                 <span className={isWin ? 'scale-125 transition-transform' : ''}>
-                  {getRPSHand(selectedHand)}
+                  {getRPSHand(myShownHand)}
                 </span>
               )}
               {step !== 'SLOT_REEL' && step !== 'SHOWDOWN' && step !== 'RESULT' && (
@@ -464,7 +567,9 @@ export const VersusGamePage: React.FC = () => {
         {/* Result Sub-text / Auto Rematch Indicator */}
         {step === 'RESULT' && isDraw && (
           <p className="text-xs font-bold text-amber-300 mt-2">
-            {drawRematchSec}초 후 자동으로 재대결이 시작됩니다!
+            {isStrategic300P
+              ? '승수가 같습니다. 추가 참가비 없이 새 3선택 세트가 곧 시작됩니다!'
+              : `${drawRematchSec}초 후 자동으로 재대결이 시작됩니다!`}
           </p>
         )}
       </div>
@@ -495,7 +600,7 @@ export const VersusGamePage: React.FC = () => {
       </div>
 
       {/* ================= 5. 3 CIRCULAR RPS CONTROLS OR POST-GAME BUTTONS ================= */}
-      {step !== 'RESULT' ? (
+      {!showPostGame ? (
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 shadow-2xl space-y-3">
           {/* 300P Strategic Preset Slots Display */}
           {isStrategic300P && (
@@ -503,43 +608,92 @@ export const VersusGamePage: React.FC = () => {
               <div className="flex items-center justify-between text-xs">
                 <span className="font-extrabold text-amber-400 flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  300P 전략전: 3개 수 프리셋 선택
+                  300P 전략전 · {strategyRound?.setNumber ?? 1}세트 (내 {strategyRound?.setWins ?? 0}
+                  승 / 상대 {strategyRound?.opponentSetWins ?? 0}승)
                 </span>
                 <button
                   onClick={handleResetSlots}
-                  className="text-[10px] text-slate-400 hover:text-white underline font-bold"
+                  disabled={!canPickSlots}
+                  className="text-[10px] text-slate-400 hover:text-white underline font-bold disabled:opacity-40"
                 >
                   초기화
                 </button>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
-                {presetSlots.map((slot, idx) => (
-                  <button
-                    key={idx}
-                    disabled={step !== 'SELECTION'}
-                    onClick={() => handleClearSlot(idx)}
-                    className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
-                      slot
-                        ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                        : 'bg-slate-900 border-slate-800 text-slate-600'
-                    }`}
-                  >
-                    <span className="text-[10px] font-bold text-slate-400">{idx + 1}세트</span>
-                    <span className="text-2xl my-0.5">{getRPSHand(slot)}</span>
-                    <span className="text-[9px] text-slate-500">{slot ? '터치 시 취소' : '미선택'}</span>
-                  </button>
-                ))}
+                {presetSlots.map((slot, idx) => {
+                  const reveal = strategyRound?.reveals.find((item) => item.index === idx + 1);
+                  const shown = reveal?.playerChoice ?? slot;
+                  return (
+                    <button
+                      key={idx}
+                      disabled={!canPickSlots}
+                      onClick={() => handleClearSlot(idx)}
+                      className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
+                        reveal
+                          ? reveal.outcome === 'win'
+                            ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                            : reveal.outcome === 'loss'
+                            ? 'bg-red-500/20 border-red-400 text-red-200'
+                            : 'bg-slate-800 border-slate-600 text-slate-300'
+                          : shown
+                          ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                          : 'bg-slate-900 border-slate-800 text-slate-600'
+                      }`}
+                    >
+                      <span className="text-[10px] font-bold text-slate-400">{idx + 1}번째</span>
+                      <span className="text-2xl my-0.5">{getRPSHand(shown)}</span>
+                      <span className="text-[9px] text-slate-500">
+                        {reveal
+                          ? `${getRPSHand(reveal.opponentChoice)} ${
+                              reveal.outcome === 'win'
+                                ? '승'
+                                : reveal.outcome === 'loss'
+                                ? '패'
+                                : '무'
+                            }`
+                          : !canPickSlots
+                          ? '확정'
+                          : shown
+                          ? '터치 시 취소'
+                          : '미선택'}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
+
+              {canPickSlots && (
+                <button
+                  onClick={handleConfirmSlots}
+                  className="w-full py-2 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-200 text-[11px] font-black active:scale-95 transition-all"
+                  id="strategy-confirm-slots-btn"
+                >
+                  {presetSlots.every((slot) => slot !== null)
+                    ? `지금 확정 제출 (${selectionTimer}초 남음)`
+                    : '남은 칸 랜덤으로 채우고 확정'}
+                </button>
+              )}
+
+              {strategySubmitted && (
+                <p className="text-[10px] font-bold text-cyan-300 text-center">
+                  제출 완료 · 상대 선택은 공개 전까지 볼 수 없습니다
+                  {strategyRound?.opponentSubmitted ? ' (상대도 제출 완료)' : ''}
+                </p>
+              )}
             </div>
           )}
 
           <div className="text-center text-xs font-black text-cyan-300 flex items-center justify-center gap-1">
             <Sparkles className="w-4 h-4 text-amber-400" />
-            {step === 'SELECTION'
-              ? isStrategic300P
-                ? '가위·바위·보를 순서대로 선택하여 3개 슬롯을 채우세요!'
-                : '원하는 손을 선택하세요! (남은 시간 동안 변경 가능)'
+            {isStrategic300P
+              ? canPickSlots
+                ? '가위·바위·보를 순서대로 선택하여 3개 슬롯을 채우세요! (마감 전까지 변경 가능)'
+                : strategyPhase === 'REVEALING' || strategyPhase === 'SET_RESULT'
+                ? '순번별 결과 공개 중...'
+                : '상대 선택 확정 대기 중...'
+              : step === 'SELECTION'
+              ? '원하는 손을 선택하세요! (남은 시간 동안 변경 가능)'
               : '게임 준비 중...'}
           </div>
 
@@ -547,13 +701,13 @@ export const VersusGamePage: React.FC = () => {
           <div className="grid grid-cols-3 gap-3">
             {/* Scissors (가위) */}
             <button
-              disabled={step !== 'SELECTION'}
+              disabled={pickDisabled}
               onClick={() => handleSelectHand('scissors')}
               className={`relative flex flex-col items-center justify-center py-5 rounded-full border-4 font-black transition-all active:scale-95 shadow-xl ${
                 selectedHand === 'scissors'
                   ? 'bg-purple-600 border-purple-300 text-white scale-110 ring-4 ring-purple-500/50 animate-vibrate shadow-purple-500/60'
                   : 'bg-gradient-to-b from-purple-900/90 to-indigo-950 border-purple-900/80 text-purple-200 hover:border-purple-500'
-              } ${step !== 'SELECTION' ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${pickDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               id="rps-scissors-circular-btn"
             >
               <span className="text-4xl mb-0.5">✌️</span>
@@ -567,13 +721,13 @@ export const VersusGamePage: React.FC = () => {
 
             {/* Rock (바위) */}
             <button
-              disabled={step !== 'SELECTION'}
+              disabled={pickDisabled}
               onClick={() => handleSelectHand('rock')}
               className={`relative flex flex-col items-center justify-center py-5 rounded-full border-4 font-black transition-all active:scale-95 shadow-xl ${
                 selectedHand === 'rock'
                   ? 'bg-cyan-500 border-cyan-200 text-slate-950 scale-110 ring-4 ring-cyan-400/50 animate-vibrate shadow-cyan-500/60'
                   : 'bg-gradient-to-b from-cyan-900/90 to-blue-950 border-cyan-900/80 text-cyan-200 hover:border-cyan-500'
-              } ${step !== 'SELECTION' ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${pickDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               id="rps-rock-circular-btn"
             >
               <span className="text-4xl mb-0.5">✊</span>
@@ -587,13 +741,13 @@ export const VersusGamePage: React.FC = () => {
 
             {/* Paper (보) */}
             <button
-              disabled={step !== 'SELECTION'}
+              disabled={pickDisabled}
               onClick={() => handleSelectHand('paper')}
               className={`relative flex flex-col items-center justify-center py-5 rounded-full border-4 font-black transition-all active:scale-95 shadow-xl ${
                 selectedHand === 'paper'
                   ? 'bg-amber-400 border-yellow-200 text-slate-950 scale-110 ring-4 ring-amber-400/50 animate-vibrate shadow-amber-500/60'
                   : 'bg-gradient-to-b from-amber-900/90 to-yellow-950 border-amber-900/80 text-amber-200 hover:border-amber-500'
-              } ${step !== 'SELECTION' ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${pickDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               id="rps-paper-circular-btn"
             >
               <span className="text-4xl mb-0.5">✋</span>

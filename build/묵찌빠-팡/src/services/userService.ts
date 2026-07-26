@@ -1,75 +1,80 @@
-import { UserProfile } from '../types';
-import { initialUserProfile, mockUsers } from '../data/mockData';
+import { EquipSlot, MatchOutcome, UserProfile } from '../types';
+import { apiClient } from '../api';
 
 export interface UserService {
   getUserProfile: (userId: string) => Promise<UserProfile>;
   getAllUsers: () => Promise<UserProfile[]>;
-  updateUserStats: (
-    userId: string,
-    isWin: boolean,
-    isDraw?: boolean
-  ) => Promise<UserProfile>;
+  updateProfile: (patch: Partial<UserProfile>) => Promise<UserProfile>;
   updateEquippedItem: (
-    type: 'border' | 'entrance' | 'victory' | 'color' | 'emote' | 'title' | 'avatar',
-    value: string
-  ) => Promise<UserProfile>;
+    slot: EquipSlot,
+    itemId: string
+  ) => Promise<{ avatar?: string; title?: string }>;
 }
 
-class MockUserService implements UserService {
-  private users: UserProfile[] = [...mockUsers];
-  private me: UserProfile = { ...initialUserProfile };
+/** 대전 결과에 따른 전적 변화 — 서버 이관 시 그대로 서버 계산으로 대체된다. */
+export function applyMatchOutcomeToProfile(
+  profile: UserProfile,
+  outcome: MatchOutcome,
+  expGain = 50
+): UserProfile {
+  if (outcome === 'draw') {
+    return { ...profile, draws: profile.draws + 1 };
+  }
 
+  if (outcome === 'loss') {
+    return { ...profile, losses: profile.losses + 1, currentStreak: 0 };
+  }
+
+  const nextStreak = profile.currentStreak + 1;
+  const leveledUp = profile.exp + expGain >= profile.maxExp;
+
+  return {
+    ...profile,
+    wins: profile.wins + 1,
+    currentStreak: nextStreak,
+    maxStreak: Math.max(profile.maxStreak, nextStreak),
+    exp: leveledUp ? profile.exp + expGain - profile.maxExp : profile.exp + expGain,
+    level: leveledUp ? profile.level + 1 : profile.level,
+  };
+}
+
+export function applyChoiceToProfile(
+  profile: UserProfile,
+  choice: 'rock' | 'paper' | 'scissors'
+): UserProfile {
+  return {
+    ...profile,
+    rockCount: profile.rockCount + (choice === 'rock' ? 1 : 0),
+    paperCount: profile.paperCount + (choice === 'paper' ? 1 : 0),
+    scissorsCount: profile.scissorsCount + (choice === 'scissors' ? 1 : 0),
+  };
+}
+
+class UserServiceImpl implements UserService {
   public async getUserProfile(userId: string): Promise<UserProfile> {
-    await new Promise((res) => setTimeout(res, 100));
-    if (userId === this.me.id || userId === 'me') {
-      return { ...this.me };
-    }
-    const found = this.users.find((u) => u.id === userId);
-    return found ? { ...found } : { ...this.me };
+    return apiClient.get<UserProfile>(`/users/${userId}`);
   }
 
   public async getAllUsers(): Promise<UserProfile[]> {
-    await new Promise((res) => setTimeout(res, 150));
-    return [...this.users];
+    return apiClient.get<UserProfile[]>('/users');
   }
 
-  public async updateUserStats(
-    userId: string,
-    isWin: boolean,
-    isDraw: boolean = false
-  ): Promise<UserProfile> {
-    await new Promise((res) => setTimeout(res, 150));
-    if (isDraw) {
-      this.me.draws += 1;
-    } else if (isWin) {
-      this.me.wins += 1;
-      this.me.currentStreak += 1;
-      if (this.me.currentStreak > this.me.maxStreak) {
-        this.me.maxStreak = this.me.currentStreak;
-      }
-    } else {
-      this.me.losses += 1;
-      this.me.currentStreak = 0;
-    }
-    const total = this.me.wins + this.me.losses;
-    this.me.winRate = total > 0 ? parseFloat(((this.me.wins / total) * 100).toFixed(1)) : 0;
-    return { ...this.me };
+  public async updateProfile(patch: Partial<UserProfile>): Promise<UserProfile> {
+    return apiClient.patch<UserProfile>('/users/me/profile', patch);
   }
 
   public async updateEquippedItem(
-    type: 'border' | 'entrance' | 'victory' | 'color' | 'emote' | 'title' | 'avatar',
-    value: string
-  ): Promise<UserProfile> {
-    await new Promise((res) => setTimeout(res, 100));
-    if (type === 'border') this.me.equippedBorder = value;
-    if (type === 'entrance') this.me.equippedEntrance = value;
-    if (type === 'victory') this.me.equippedVictory = value;
-    if (type === 'color') this.me.equippedNicknameColor = value;
-    if (type === 'emote') this.me.equippedEmote = value;
-    if (type === 'title') this.me.title = value;
-    if (type === 'avatar') this.me.avatar = value;
-    return { ...this.me };
+    slot: EquipSlot,
+    itemId: string
+  ): Promise<{ avatar?: string; title?: string }> {
+    if (slot !== 'avatar' && slot !== 'title') {
+      throw new Error('현재 서버 장착은 아바타와 칭호만 지원합니다.');
+    }
+    return apiClient.post<{ avatar?: string; title?: string }>('/users/me/equip', {
+      itemType: slot.toUpperCase(),
+      itemId,
+    });
   }
 }
 
-export const userService = new MockUserService();
+export const userService = new UserServiceImpl();

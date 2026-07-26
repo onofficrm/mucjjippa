@@ -101,9 +101,9 @@ export const MatchmakingWaitPage: React.FC = () => {
           <span>게임 도움말 (1:1 포인트 대전)</span>
         </div>
         <p className="text-[11px] text-slate-400 leading-relaxed font-medium pl-5.5">
-          • 승리 시 배팅 포인트의 <strong className="text-amber-300">1.9배 포인트</strong> 및 EXP가 지급됩니다.
+          • 승리 시 입장료의 <strong className="text-amber-300">2배 포인트</strong>가 서버에서 지급됩니다.
           <br />
-          • 매칭 취소 시 차감되었던 입장 포인트는 즉시 <strong className="text-emerald-400">100% 환불</strong>됩니다.
+          • 상대 확정 전 취소 시 참가비는 아직 차감되지 않습니다. 확정 후에는 연결 종료 정책이 적용됩니다.
         </p>
       </div>
 
@@ -114,7 +114,7 @@ export const MatchmakingWaitPage: React.FC = () => {
         id="cancel-matchmaking-btn"
       >
         <X className="w-4 h-4 text-red-400 stroke-[3]" />
-        <span>매칭 취소 (포인트 환불)</span>
+        <span>매칭 취소</span>
       </button>
     </div>
   );

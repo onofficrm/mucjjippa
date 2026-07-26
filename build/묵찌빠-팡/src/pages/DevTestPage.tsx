@@ -15,11 +15,13 @@ import {
   FileCode2,
 } from 'lucide-react';
 import { sound } from '../utils/audio';
+import { Tournament } from '../types';
 
 export const DevTestPage: React.FC = () => {
   const {
     user,
     setUser,
+    setDevBalance,
     navigateTo,
     goBack,
     registerTournament,
@@ -36,17 +38,18 @@ export const DevTestPage: React.FC = () => {
   const [mobilePreview, setMobilePreview] = useState<boolean>(false);
 
   // User State Quick Presets
-  const handleSetPoints = (pts: number) => {
-    setUser((prev) => ({ ...prev, points: pts }));
+  // 잔액은 컴포넌트가 직접 계산하지 않고 walletService(setDevBalance)를 통해서만 변경한다.
+  const handleSetPoints = async (pts: number) => {
+    await setDevBalance({ points: pts }, '[개발 프리셋] 포인트 지정');
     showToast(`포인트가 ${pts.toLocaleString()}P로 설정되었습니다.`, 'success');
   };
 
-  const handleSetTickets = (tkts: number) => {
-    setUser((prev) => ({ ...prev, tickets: tkts }));
+  const handleSetTickets = async (tkts: number) => {
+    await setDevBalance({ tickets: tkts }, '[개발 프리셋] 티켓 지정');
     showToast(`티켓이 ${tkts}장으로 설정되었습니다.`, 'success');
   };
 
-  const handleSetUserType = (type: 'new' | 'pro') => {
+  const handleSetUserType = async (type: 'new' | 'pro') => {
     if (type === 'new') {
       setUser((prev) => ({
         ...prev,
@@ -58,9 +61,8 @@ export const DevTestPage: React.FC = () => {
         draws: 0,
         currentStreak: 0,
         maxStreak: 0,
-        points: 100,
-        tickets: 1,
       }));
+      await setDevBalance({ points: 100, tickets: 1 }, '[개발 프리셋] 신규 사용자');
       showToast('신규 사용자 상태로 설정되었습니다.', 'info');
     } else {
       setUser((prev) => ({
@@ -75,9 +77,8 @@ export const DevTestPage: React.FC = () => {
         draws: 8,
         currentStreak: 12,
         maxStreak: 15,
-        points: 50000,
-        tickets: 20,
       }));
+      await setDevBalance({ points: 50000, tickets: 20 }, '[개발 프리셋] 고레벨 사용자');
       showToast('고레벨 사용자 상태로 설정되었습니다.', 'success');
     }
   };
@@ -85,6 +86,7 @@ export const DevTestPage: React.FC = () => {
   // 1:1 Match Force Actions
   const handleForceMatchResult = (result: 'win' | 'loss' | 'draw') => {
     setActiveMatch({
+      matchId: 'match_dev_forced',
       roomId: 'room_100p',
       roomName: '[1:1 대전] 개발자 테스트 방',
       opponent: {
@@ -92,18 +94,23 @@ export const DevTestPage: React.FC = () => {
         nickname: '테스트AI',
         avatar: '🤖',
         title: '시뮬레이터',
-        level: 10,
-        points: 1000,
+        wins: 100,
+        losses: 100,
         winRate: 50,
+        maxStreak: 5,
+        recentLastHand: 'rock',
+        greeting: '개발자 테스트용 상대입니다.',
       },
       stakePoints: 100,
       round: 3,
       maxRounds: 3,
       playerScore: result === 'win' ? 2 : result === 'draw' ? 1 : 0,
       opponentScore: result === 'loss' ? 2 : result === 'draw' ? 1 : 0,
-      myChoices: ['rock', 'scissors', 'paper'],
-      opponentChoices: ['scissors', 'rock', 'paper'],
-      status: 'playing',
+      playerChoice: 'rock',
+      opponentChoice: result === 'win' ? 'scissors' : result === 'draw' ? 'rock' : 'paper',
+      roundResult: result,
+      matchWinner: result === 'win' ? 'player' : result === 'loss' ? 'opponent' : null,
+      phase: 'result',
     });
     navigateTo('game_result');
     showToast(`1:1 강제 ${result.toUpperCase()} 상태가 생성되었습니다.`, 'info');
@@ -132,16 +139,19 @@ export const DevTestPage: React.FC = () => {
   };
 
   // Tournament Force Actions
-  const handleSetTournamentState = (stage: string) => {
-    const mockTour = {
+  const handleSetTournamentState = async (stage: string) => {
+    const mockTour: Tournament = {
       id: 'tour_daily',
       title: '매일 100만P 프리미엄 토너먼트',
-      prizePool: 1000000,
+      type: 'daily',
+      totalPrize: 1000000,
       ticketCost: 1,
-      startTime: '20:00',
-      registeredCount: stage === 'low_participants' ? 4 : 64,
       maxParticipants: 64,
-      status: 'registration' as const,
+      currentParticipants: stage === 'low_participants' ? 4 : 64,
+      startTime: '20:00',
+      startTimeEpoch: Date.now() + (stage === '10s_before' ? 10_000 : 1000 * 60 * 30),
+      status: 'open',
+      currentRound: '참가 접수 중',
       description: '개발자 테스트용 토너먼트 상태입니다.',
     };
 
@@ -151,14 +161,14 @@ export const DevTestPage: React.FC = () => {
       navigateTo('tournament_lobby');
       showToast('토너먼트 참가 접수 중 상태로 변경되었습니다.', 'info');
     } else if (stage === 'ticket_shortage') {
-      setUser((prev) => ({ ...prev, tickets: 0 }));
+      await setDevBalance({ tickets: 0 }, '[개발 프리셋] 티켓 부족 상태');
       navigateTo('tournament_lobby');
       showToast('티켓 부족 상태가 설정되었습니다.', 'error');
     } else if (stage === 'registered') {
-      registerTournament(mockTour);
+      await registerTournament(mockTour);
       navigateTo('tournament_wait');
     } else if (stage === '10s_before') {
-      registerTournament(mockTour);
+      await registerTournament(mockTour);
       navigateTo('tournament_wait');
       showToast('시작 10초 전 시뮬레이션 상태입니다.', 'info');
     } else if (stage === 'bracket') {
@@ -203,13 +213,21 @@ export const DevTestPage: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => navigateTo('development_status')}
-          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1 shadow-md shadow-indigo-500/20"
-        >
-          <FileCode2 className="w-3.5 h-3.5" />
-          개발 현황 보고서
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigateTo('admin_center')}
+            className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1 shadow-md shadow-cyan-500/20"
+          >
+            관리자센터
+          </button>
+          <button
+            onClick={() => navigateTo('development_status')}
+            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl flex items-center gap-1 shadow-md shadow-indigo-500/20"
+          >
+            <FileCode2 className="w-3.5 h-3.5" />
+            개발 현황 보고서
+          </button>
+        </div>
       </div>
 
       {/* 1. User Profile Controls */}

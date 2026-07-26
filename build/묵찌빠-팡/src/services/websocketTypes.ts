@@ -1,24 +1,16 @@
-export type WSEventType =
-  | 'MATCH_SEARCH_STARTED'
-  | 'MATCH_FOUND'
-  | 'MATCH_CANCELLED'
-  | 'MATCH_READY'
-  | 'ROUND_STARTED'
-  | 'CHOICE_SUBMITTED'
-  | 'CHOICE_LOCKED'
-  | 'ROUND_RESULT'
-  | 'MATCH_FINISHED'
-  | 'TOURNAMENT_STARTED'
-  | 'QUALIFIER_RESULT'
-  | 'BRACKET_UPDATED'
-  | 'TOURNAMENT_FINISHED'
-  | 'WALLET_UPDATED';
-
-export interface WSMessage<T = unknown> {
-  event: WSEventType;
-  timestamp: number;
-  payload: T;
-}
+/**
+ * WebSocket 타입은 `src/types/socket.ts`로 이동했다.
+ * 기존 import 경로를 유지하기 위해 여기서 다시 내보낸다.
+ */
+export type {
+  SocketEvent,
+  SocketEventType,
+  WSEventType,
+  WSMessage,
+  ChoiceSubmitPayload,
+  RoundResultPayload,
+  WalletUpdatedPayload,
+} from '../types/socket';
 
 /**
  * Server Integration Guidelines & Handshake Specification

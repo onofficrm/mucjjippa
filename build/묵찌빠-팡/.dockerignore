@@ -1,0 +1,12 @@
+node_modules
+dist
+server/node_modules
+server/dist
+coverage
+.env
+.env.*
+!.env.example
+*.log
+test-results
+playwright-report
+e2e

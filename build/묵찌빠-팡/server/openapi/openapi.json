@@ -1,0 +1,362 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "묵찌빠 팡 API",
+    "version": "0.1.0",
+    "description": "Fastify REST API. 실시간 대전은 Socket.IO 를 사용합니다. 자세한 소켓 이벤트는 SOCKET_EVENTS.md 참고."
+  },
+  "servers": [
+    { "url": "http://localhost:4000/api", "description": "Local development" },
+    { "url": "/api", "description": "Same-origin (Docker / reverse proxy)" }
+  ],
+  "tags": [
+    { "name": "Health" },
+    { "name": "Auth" },
+    { "name": "Users" },
+    { "name": "Wallet" },
+    { "name": "Shop" },
+    { "name": "Tournaments" },
+    { "name": "Watch" },
+    { "name": "Rankings" },
+    { "name": "Missions" },
+    { "name": "Notices" },
+    { "name": "Admin" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "ApiSuccess": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "data": { "type": "object" }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      },
+      "SignupBody": {
+        "type": "object",
+        "required": ["loginId", "nickname", "password"],
+        "properties": {
+          "loginId": { "type": "string", "minLength": 4 },
+          "nickname": { "type": "string", "minLength": 2 },
+          "password": { "type": "string", "minLength": 8 },
+          "email": { "type": "string", "format": "email" },
+          "agreeTerms": { "type": "boolean" },
+          "agreePrivacy": { "type": "boolean" }
+        }
+      },
+      "LoginBody": {
+        "type": "object",
+        "required": ["loginId", "password"],
+        "properties": {
+          "loginId": { "type": "string" },
+          "password": { "type": "string" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Liveness probe",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiSuccess" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Readiness (DB + Redis)",
+        "responses": {
+          "200": { "description": "Ready" },
+          "503": { "description": "Degraded" }
+        }
+      }
+    },
+    "/version": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Build / env version",
+        "responses": { "200": { "description": "Version info" } }
+      }
+    },
+    "/auth/signup": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "회원가입",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SignupBody" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "세션 + 프로필" },
+          "400": { "description": "검증 실패", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } } } }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "로그인",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginBody" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "세션 + 프로필" },
+          "401": { "description": "인증 실패" }
+        }
+      }
+    },
+    "/auth/guest": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "게스트 세션",
+        "responses": { "200": { "description": "게스트 프로필" } }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Access token 갱신 (refresh cookie)",
+        "responses": { "200": { "description": "새 access token" } }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "로그아웃",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "현재 세션",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "세션 상태" } }
+      }
+    },
+    "/users/me": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "내 프로필 요약",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "프로필" } }
+      }
+    },
+    "/users/me/profile": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "상세 프로필",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "프로필" } }
+      },
+      "patch": {
+        "tags": ["Users"],
+        "summary": "프로필 수정",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "갱신된 프로필" } }
+      }
+    },
+    "/users/me/settings": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "설정 조회",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "설정" } }
+      },
+      "patch": {
+        "tags": ["Users"],
+        "summary": "설정 변경",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "설정" } }
+      }
+    },
+    "/wallet": {
+      "get": {
+        "tags": ["Wallet"],
+        "summary": "포인트·티켓 잔액",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "지갑" } }
+      }
+    },
+    "/wallet/transactions": {
+      "get": {
+        "tags": ["Wallet"],
+        "summary": "원장 내역",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "거래 목록" } }
+      }
+    },
+    "/shop/items": {
+      "get": {
+        "tags": ["Shop"],
+        "summary": "상점 카탈로그",
+        "responses": { "200": { "description": "상품 목록" } }
+      }
+    },
+    "/shop/purchase": {
+      "post": {
+        "tags": ["Shop"],
+        "summary": "구매 (멱등 transactionKey)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "구매 결과" },
+          "409": { "description": "잔액 부족 / 중복" }
+        }
+      }
+    },
+    "/tournaments": {
+      "get": {
+        "tags": ["Tournaments"],
+        "summary": "토너먼트 목록",
+        "responses": { "200": { "description": "목록" } }
+      }
+    },
+    "/tournaments/{id}": {
+      "get": {
+        "tags": ["Tournaments"],
+        "summary": "토너먼트 상세",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "상세" } }
+      }
+    },
+    "/tournaments/{id}/join": {
+      "post": {
+        "tags": ["Tournaments"],
+        "summary": "참가 (티켓 차감)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "참가 결과" } }
+      }
+    },
+    "/tournaments/{id}/cancel": {
+      "post": {
+        "tags": ["Tournaments"],
+        "summary": "참가 취소 (환불)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "취소 결과" } }
+      }
+    },
+    "/tournaments/{id}/bracket": {
+      "get": {
+        "tags": ["Tournaments"],
+        "summary": "대진표",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "대진표" } }
+      }
+    },
+    "/watch/live": {
+      "get": {
+        "tags": ["Watch"],
+        "summary": "라이브 관전 목록",
+        "responses": { "200": { "description": "목록" } }
+      }
+    },
+    "/rankings": {
+      "get": {
+        "tags": ["Rankings"],
+        "summary": "랭킹 (type 쿼리)",
+        "parameters": [
+          { "name": "type", "in": "query", "schema": { "type": "string", "enum": ["weekly", "monthly", "win-rate", "streak", "tournament"] } }
+        ],
+        "responses": { "200": { "description": "랭킹" } }
+      }
+    },
+    "/rankings/weekly": {
+      "get": {
+        "tags": ["Rankings"],
+        "summary": "주간 랭킹",
+        "responses": { "200": { "description": "목록" } }
+      }
+    },
+    "/missions": {
+      "get": {
+        "tags": ["Missions"],
+        "summary": "미션 목록",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "미션" } }
+      }
+    },
+    "/notices": {
+      "get": {
+        "tags": ["Notices"],
+        "summary": "공개 공지",
+        "responses": { "200": { "description": "공지" } }
+      }
+    },
+    "/admin/dashboard": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "관리자 대시보드",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "요약 지표" }, "403": { "description": "권한 없음" } }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "사용자 목록",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "목록" } }
+      }
+    },
+    "/admin/security/signals": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "부정 사용 신호",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "신호 목록" } }
+      }
+    }
+  }
+}

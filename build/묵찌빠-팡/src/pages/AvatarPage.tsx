@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sparkles, ArrowLeft, Check, Lock, Palette, Smile, ShieldAlert, Award, Frame, Zap, Crown } from 'lucide-react';
 import { useGame } from '../context/GameContext';
-import { mockAvatars } from '../data/mockData';
+import { shopService } from '../services/shopService';
+import type { Avatar } from '../types';
 
 type CosmeticCategory = 'character' | 'border' | 'entrance' | 'victory' | 'nickname_color' | 'emoticon';
 
@@ -51,7 +52,8 @@ const cosmeticCatalog: CosmeticItemData[] = [
 ];
 
 export const AvatarPage: React.FC = () => {
-  const { goBack, user, equipAvatar, topUpPoints } = useGame();
+  const { goBack, user, equipAvatar } = useGame();
+  const [serverAvatars, setServerAvatars] = useState<Avatar[]>([]);
   const [activeTab, setActiveTab] = useState<CosmeticCategory>('character');
   const [equippedItems, setEquippedItems] = useState<Record<CosmeticCategory, string>>({
     character: user.avatar || '👑',
@@ -62,9 +64,19 @@ export const AvatarPage: React.FC = () => {
     emoticon: user.equippedEmote || 'VIP 도발 이모티콘 팩',
   });
 
-  const [unlockedIds, setUnlockedIds] = useState<string[]>(
-    user.ownedCosmetics || ['av_1', 'av_2', 'av_3', 'bd_1', 'ent_1', 'vic_1', 'nc_1', 'em_1']
-  );
+  const [unlockedIds, setUnlockedIds] = useState<string[]>(user.ownedCosmetics || []);
+
+  useEffect(() => {
+    shopService
+      .getAvatars()
+      .then((avatars) => {
+        setServerAvatars(avatars);
+        setUnlockedIds((current) => [
+          ...new Set([...current, ...avatars.filter((avatar) => avatar.isUnlocked).map((avatar) => avatar.id)]),
+        ]);
+      })
+      .catch(() => setServerAvatars([]));
+  }, []);
 
   const handleEquip = (item: CosmeticItemData) => {
     setEquippedItems((prev) => ({
@@ -77,12 +89,23 @@ export const AvatarPage: React.FC = () => {
     }
   };
 
-  const handleUnlock = (item: CosmeticItemData) => {
+  const handleUnlock = async (item: CosmeticItemData) => {
+    if (item.category !== 'character') {
+      alert('이 꾸미기 항목은 아직 서버 상점에 연결되지 않았습니다.');
+      return;
+    }
     if (user.points < item.price && item.currency === 'points') {
       alert('포인트가 부족합니다! 충전소에서 포인트 보상을 무료로 받으실 수 있습니다.');
       return;
     }
-    setUnlockedIds((prev) => [...prev, item.id]);
+    const avatar = serverAvatars.find((candidate) => candidate.id === item.id);
+    if (!avatar) return;
+    const outcome = await shopService.purchaseAvatar(avatar);
+    if (outcome.status !== 'success') {
+      alert(outcome.message);
+      return;
+    }
+    setUnlockedIds((prev) => [...new Set([...prev, item.id])]);
     setEquippedItems((prev) => ({
       ...prev,
       [item.category]: item.name,
@@ -92,7 +115,20 @@ export const AvatarPage: React.FC = () => {
     }
   };
 
-  const filteredItems = cosmeticCatalog.filter((item) => item.category === activeTab);
+  const avatarCatalog: CosmeticItemData[] = serverAvatars.map((avatar) => ({
+    id: avatar.id,
+    category: 'character',
+    name: avatar.name,
+    preview: avatar.emoji,
+    description: avatar.description,
+    price: avatar.price,
+    currency: avatar.currency,
+    isDefaultUnlocked: avatar.isUnlocked,
+  }));
+  const filteredItems =
+    activeTab === 'character'
+      ? avatarCatalog
+      : cosmeticCatalog.filter((item) => item.category === activeTab);
 
   const tabs = [
     { key: 'character', label: '캐릭터', icon: Crown },

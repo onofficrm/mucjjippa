@@ -1,18 +1,58 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Crown, Trophy, Flame, Award, Users, Target } from 'lucide-react';
-import { mockRankings } from '../data/mockData';
 import { RankingCard } from '../components/RankingCard';
 import { useGame } from '../context/GameContext';
 import { RankItem } from '../types';
+import { rankingService, type RankingKind } from '../services/rankingService';
 
-type RankingTab = 'weekly' | 'monthly' | 'streak' | 'tournament' | 'near_me';
+type RankingTab = 'weekly' | 'monthly' | 'win-rate' | 'streak' | 'tournament' | 'near_me';
+
+const TAB_TO_KIND: Record<Exclude<RankingTab, 'near_me'>, RankingKind> = {
+  weekly: 'weekly',
+  monthly: 'monthly',
+  'win-rate': 'win-rate',
+  streak: 'streak',
+  tournament: 'tournament',
+};
 
 export const RankingPage: React.FC = () => {
-  const { user } = useGame();
+  const { user, showToast } = useGame();
   const [tab, setTab] = useState<RankingTab>('weekly');
+  const [items, setItems] = useState<RankItem[]>([]);
+  const [myRank, setMyRank] = useState<RankItem | null>(null);
+  const [top, setTop] = useState<RankItem | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const myRankItem: RankItem = {
-    rank: 14,
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (tab === 'near_me') {
+        const data = await rankingService.getAroundMe('weekly');
+        setItems(data.items);
+        setMyRank(data.myRank);
+        setTop(data.items[0] ?? null);
+        if (data.message) showToast(data.message, 'info');
+      } else {
+        const kind = TAB_TO_KIND[tab];
+        const data = await rankingService.getRankings(kind, 1, 30);
+        setItems(data.items);
+        setMyRank(data.myRank);
+        setTop(data.top);
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '랭킹을 불러오지 못했습니다.', 'error');
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast, tab]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const myRankItem: RankItem = myRank ?? {
+    rank: 0,
     id: user.id,
     nickname: user.nickname,
     avatar: user.avatar,
@@ -22,35 +62,13 @@ export const RankingPage: React.FC = () => {
     streak: user.currentStreak,
     wins: user.wins,
     losses: user.losses,
-    rewardText: '주간 상금 20,000P',
+    rewardText: '조건 미충족',
   };
 
-  const getFilteredRankings = (): RankItem[] => {
-    switch (tab) {
-      case 'weekly':
-        return mockRankings.map((r) => ({ ...r, rewardText: r.rank === 1 ? '500,000P + [무적의] 칭호' : r.rank <= 3 ? '100,000P' : '20,000P' }));
-      case 'monthly':
-        return [...mockRankings].reverse().map((r, i) => ({ ...r, rank: i + 1, rewardText: i === 0 ? '2,000,000P + 전설 프레임' : '100,000P' }));
-      case 'streak':
-        return [...mockRankings].sort((a, b) => b.streak - a.streak).map((r, i) => ({ ...r, rank: i + 1, rewardText: i === 0 ? '500,000P + [10연승] 칭호' : '50,000P' }));
-      case 'tournament':
-        return mockRankings.map((r) => ({ ...r, rewardText: r.rank === 1 ? '1,000,000P + [토너먼트 챔피언]' : '50,000P' }));
-      case 'near_me':
-        return [
-          { ...mockRankings[0], rank: 12, nickname: '마스터G', rewardText: '주간 30,000P' },
-          { ...mockRankings[1], rank: 13, nickname: '샤이닝스타', rewardText: '주간 20,000P' },
-          myRankItem,
-          { ...mockRankings[2], rank: 15, nickname: '승리의날개', rewardText: '주간 15,000P' },
-          { ...mockRankings[3], rank: 16, nickname: '락앤롤', rewardText: '주간 10,000P' },
-        ];
-    }
-  };
-
-  const currentList = getFilteredRankings();
-
-  const tabs: { key: RankingTab; label: string; icon: any }[] = [
+  const tabs: { key: RankingTab; label: string; icon: typeof Trophy }[] = [
     { key: 'weekly', label: '주간', icon: Trophy },
     { key: 'monthly', label: '월간', icon: Crown },
+    { key: 'win-rate', label: '승률', icon: Target },
     { key: 'streak', label: '연승', icon: Flame },
     { key: 'tournament', label: '토너먼트', icon: Award },
     { key: 'near_me', label: '내 주변 순위', icon: Users },
@@ -58,7 +76,6 @@ export const RankingPage: React.FC = () => {
 
   return (
     <div className="space-y-5 pb-20 md:pb-8">
-      {/* Title Header */}
       <div className="bg-slate-900/90 border border-slate-800 p-4 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-black text-white flex items-center gap-2">
@@ -70,17 +87,15 @@ export const RankingPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Podium Top 1 Preview */}
         <div className="flex items-center gap-2.5 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 p-2.5 rounded-2xl border border-amber-500/40">
           <span className="text-2xl">👑</span>
           <div>
             <span className="text-[10px] font-bold text-amber-300 block">현재 1위 마스터</span>
-            <span className="text-xs font-black text-white">{mockRankings[0].nickname}</span>
+            <span className="text-xs font-black text-white">{top?.nickname ?? '집계 중'}</span>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-slate-800">
         {tabs.map((t) => {
           const Icon = t.icon;
@@ -102,11 +117,10 @@ export const RankingPage: React.FC = () => {
         })}
       </div>
 
-      {/* Sticky / Highlighted Current User Rank Banner */}
       <div className="bg-gradient-to-r from-cyan-950 via-slate-900 to-blue-950 border-2 border-cyan-400/80 p-3.5 rounded-3xl shadow-lg shadow-cyan-500/20 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-cyan-400 text-slate-950 font-black text-xs flex items-center justify-center shadow">
-            #{myRankItem.rank}
+            {myRankItem.rank > 0 ? `#${myRankItem.rank}` : '-'}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-2xl">{myRankItem.avatar}</span>
@@ -115,23 +129,36 @@ export const RankingPage: React.FC = () => {
                 <span className="font-extrabold text-xs text-white">{myRankItem.nickname}</span>
                 <span className="text-[9px] font-black bg-cyan-500 text-slate-950 px-1.5 rounded">MY RANK</span>
               </div>
-              <span className="text-[10px] text-cyan-300 font-bold">{myRankItem.title} • {myRankItem.wins}승 ({myRankItem.winRate}%)</span>
+              <span className="text-[10px] text-cyan-300 font-bold">
+                {myRankItem.title} • {myRankItem.wins}승 ({myRankItem.winRate}%)
+              </span>
             </div>
           </div>
         </div>
 
         <div className="text-right">
-          <span className="text-xs font-black text-amber-400 block">{myRankItem.points.toLocaleString()} P</span>
-          <span className="text-[9px] text-slate-400">예상 보상: {myRankItem.rewardText}</span>
+          <span className="text-xs font-black text-amber-400 block">
+            {myRankItem.points.toLocaleString()} P
+          </span>
+          <span className="text-[9px] text-slate-400">
+            예상 보상: {myRankItem.rewardText ?? '-'}
+          </span>
         </div>
       </div>
 
-      {/* Leaderboard List */}
-      <div className="space-y-2.5">
-        {currentList.map((item) => (
-          <RankingCard key={item.id} item={item} isCurrentUser={item.id === user.id} />
-        ))}
-      </div>
+      {loading ? (
+        <div className="text-center text-xs text-slate-400 py-10">랭킹 불러오는 중…</div>
+      ) : items.length === 0 ? (
+        <div className="text-center text-xs text-slate-400 py-10">
+          표시할 랭킹이 없습니다. (최소 게임 수 조건을 확인해 주세요)
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {items.map((item) => (
+            <RankingCard key={`${item.id}-${item.rank}`} item={item} isCurrentUser={item.id === user.id} />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

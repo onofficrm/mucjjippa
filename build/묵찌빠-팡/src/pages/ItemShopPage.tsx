@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ShoppingBag, ArrowLeft, Shield, Zap, Ticket, Coins, TicketPercent, CheckCircle2, QrCode, Copy, X } from 'lucide-react';
 import { useGame } from '../context/GameContext';
-import { mockShopItems, mockCoupons } from '../data/mockData';
-import { CouponItem, ShopItem } from '../types';
+import { ShopItem } from '../types';
+import { shopService } from '../services/shopService';
 
 type ShopCategory = 'all' | 'cosmetic' | 'ticket' | 'booster' | 'coupon';
 
@@ -17,30 +17,43 @@ interface IssuedCoupon {
 }
 
 export const ItemShopPage: React.FC = () => {
-  const { goBack, user, buyShopItem, spendPoints } = useGame();
+  const { goBack, user, buyShopItem } = useGame();
   const [activeCategory, setActiveCategory] = useState<ShopCategory>('all');
+  const [shopItems, setShopItems] = useState<ShopItem[]>([]);
   const [issuedCoupons, setIssuedCoupons] = useState<IssuedCoupon[]>([]);
   const [selectedCouponModal, setSelectedCouponModal] = useState<IssuedCoupon | null>(null);
   const [showMyCoupons, setShowMyCoupons] = useState(false);
 
-  const handleExchangeCoupon = (coupon: CouponItem) => {
-    if (user.points < coupon.pricePoints) {
+  const refreshShopItems = () =>
+    shopService.getItems().then(setShopItems).catch(() => setShopItems([]));
+
+  useEffect(() => {
+    void refreshShopItems();
+  }, []);
+
+  const handleBuyItem = async (item: ShopItem) => {
+    if (await buyShopItem(item)) await refreshShopItems();
+  };
+
+  const handleExchangeCoupon = async (item: ShopItem) => {
+    if (user.points < item.price) {
       alert('포인트가 부족합니다! [포인트 충전]에서 무료 포인트 미션을 수행해 보세요.');
       return;
     }
 
-    const success = spendPoints(coupon.pricePoints, `[쿠폰 교환] ${coupon.title}`);
+    const success = await buyShopItem(item);
     if (success) {
+      await refreshShopItems();
       const barcodeStr = `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
       const pinStr = `${Math.floor(100000 + Math.random() * 900000)}`;
       const newCoupon: IssuedCoupon = {
         id: `icp_${Date.now()}`,
-        title: coupon.title,
-        brand: coupon.brand,
+        title: item.name,
+        brand: '묵찌빠 팡',
         barcode: barcodeStr,
         pinCode: pinStr,
         issuedAt: new Date().toLocaleString(),
-        image: coupon.image,
+        image: item.icon,
       };
 
       setIssuedCoupons((prev) => [newCoupon, ...prev]);
@@ -48,7 +61,7 @@ export const ItemShopPage: React.FC = () => {
     }
   };
 
-  const filteredShopItems = mockShopItems.filter((item) => {
+  const filteredShopItems = shopItems.filter((item) => {
     if (activeCategory === 'all') return true;
     return item.category === activeCategory;
   });
@@ -123,7 +136,7 @@ export const ItemShopPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {mockCoupons.map((coupon) => (
+            {shopItems.filter((item) => item.category === 'coupon').map((coupon) => (
               <div
                 key={coupon.id}
                 className="bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 p-4 rounded-3xl transition-all shadow-xl flex flex-col justify-between"
@@ -131,14 +144,14 @@ export const ItemShopPage: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-3">
                     <div className="w-14 h-14 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-3xl shrink-0 shadow-inner">
-                      {coupon.image}
+                      {coupon.icon}
                     </div>
                     <div>
                       <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                        {coupon.brand}
+                        묵찌빠 팡
                       </span>
-                      <h3 className="font-extrabold text-sm text-white mt-1">{coupon.title}</h3>
-                      <p className="text-[10px] text-slate-400 mt-0.5">잔여 수량: {coupon.stock}개 남음</p>
+                      <h3 className="font-extrabold text-sm text-white mt-1">{coupon.name}</h3>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{coupon.description}</p>
                     </div>
                   </div>
                 </div>
@@ -146,14 +159,15 @@ export const ItemShopPage: React.FC = () => {
                 <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
                   <span className="font-black text-sm text-amber-400 flex items-center gap-1">
                     <Coins className="w-4 h-4 fill-amber-400" />
-                    {coupon.pricePoints.toLocaleString()} P
+                    {coupon.price.toLocaleString()} P
                   </span>
 
                   <button
                     onClick={() => handleExchangeCoupon(coupon)}
-                    className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 active:scale-95 transition-all"
+                    disabled={coupon.isOwned}
+                    className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 active:scale-95 transition-all disabled:bg-slate-700 disabled:text-slate-400"
                   >
-                    쿠폰 교환하기
+                    {coupon.isOwned ? '교환 완료' : '쿠폰 교환하기'}
                   </button>
                 </div>
               </div>
@@ -186,11 +200,12 @@ export const ItemShopPage: React.FC = () => {
                 </span>
 
                 <button
-                  onClick={() => buyShopItem(item)}
-                  className="px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black text-xs shadow-md shadow-cyan-500/20 active:scale-95 transition-all"
+                  onClick={() => handleBuyItem(item)}
+                  disabled={item.isOwned && item.type !== 'booster'}
+                  className="px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black text-xs shadow-md shadow-cyan-500/20 active:scale-95 transition-all disabled:bg-slate-700 disabled:text-slate-400"
                   id={`buy-item-btn-${item.id}`}
                 >
-                  구매하기
+                  {item.isOwned && item.type !== 'booster' ? '보유 중' : '구매하기'}
                 </button>
               </div>
             </div>

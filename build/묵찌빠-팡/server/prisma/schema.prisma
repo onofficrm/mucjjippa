@@ -1,0 +1,800 @@
+// 묵찌빠 팡 — Prisma schema
+// PostgreSQL + 외래키 / unique / 복합 index / enum / version(낙관적 락)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  DELETED
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum NoticeLevel {
+  NORMAL
+  URGENT
+}
+
+enum NoticeStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ENDED
+  ARCHIVED
+}
+
+enum SystemErrorLevel {
+  WARN
+  ERROR
+  FATAL
+}
+
+enum AssetType {
+  POINT
+  TICKET
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+  ADJUST
+  REFUND
+}
+
+enum WalletTransactionReason {
+  MATCH_ENTRY
+  MATCH_WIN_REWARD
+  MATCH_REFUND
+  TOURNAMENT_REWARD
+  MISSION_REWARD
+  ATTENDANCE_REWARD
+  AD_REWARD
+  SHOP_PURCHASE
+  TICKET_EXCHANGE
+  TOURNAMENT_ENTRY
+  TOURNAMENT_REFUND
+  ITEM_REWARD
+  ADMIN_CREDIT
+  ADMIN_DEBIT
+}
+
+enum MatchMode {
+  CASUAL
+  RANKED
+  PRACTICE
+  TOURNAMENT
+}
+
+enum MatchStatus {
+  QUEUED
+  READY
+  PLAYING
+  COMPLETED
+  CANCELLED
+  ABORTED
+}
+
+enum MatchRoundStatus {
+  PENDING
+  LOCKED
+  COMPLETED
+  TIMEOUT
+}
+
+enum RpsChoice {
+  ROCK
+  PAPER
+  SCISSORS
+}
+
+enum TournamentType {
+  DAILY
+  WEEKLY
+  HOURLY
+  SPECIAL
+}
+
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION
+  READY
+  QUALIFIER
+  BRACKET
+  SEMIFINAL
+  FINAL
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+enum TournamentTier {
+  BEGINNER
+  REGULAR
+  MEGA
+}
+
+enum QualifierRoundStatus {
+  PENDING
+  CHOOSING
+  RESOLVED
+}
+
+enum TournamentParticipantStatus {
+  REGISTERED
+  CHECKED_IN
+  PLAYING
+  ELIMINATED
+  WINNER
+  CANCELLED
+}
+
+enum TournamentMatchStatus {
+  PENDING
+  READY
+  PLAYING
+  COMPLETED
+  BYE
+  CANCELLED
+}
+
+enum CatalogStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum AvatarType {
+  BASIC
+  RARE
+  LEGENDARY
+  EVENT
+}
+
+enum InventoryItemType {
+  AVATAR
+  TITLE
+  SHOP_ITEM
+  COUPON
+  BOOSTER
+}
+
+enum ShopItemCategory {
+  COSMETIC
+  TICKET
+  BOOSTER
+  COUPON
+}
+
+enum NotificationType {
+  MATCH
+  TOURNAMENT
+  REWARD
+  NOTICE
+  SYSTEM
+}
+
+enum MissionPeriod {
+  DAILY
+  WEEKLY
+  ONCE
+}
+
+enum MissionMetric {
+  MATCH_PLAY
+  MATCH_WIN
+  STREAK_REACH
+  TOURNAMENT_JOIN
+  TOURNAMENT_WIN
+  ROCK_USE
+  PAPER_USE
+  SCISSORS_USE
+}
+
+// ─────────────────────────────────────────────
+// User / Settings
+// ─────────────────────────────────────────────
+
+/// 계정. soft delete: status=DELETED + deletedAt
+model User {
+  id           String     @id @default(cuid())
+  loginId      String     @unique @map("login_id") @db.VarChar(64)
+  email        String?    @unique @db.VarChar(255)
+  passwordHash String     @map("password_hash")
+  nickname     String     @unique @db.VarChar(32)
+  status       UserStatus @default(ACTIVE)
+  role         UserRole   @default(USER)
+  /// 관리자 2단계 인증 (TOTP) — 준비 단계. secret 은 enroll 후 저장, enabled 시 로그인 시 코드 요구
+  twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
+  twoFactorSecret  String? @map("two_factor_secret") @db.VarChar(64)
+  level         Int        @default(1)
+  experience    Int        @default(0)
+  wins          Int        @default(0)
+  losses        Int        @default(0)
+  draws         Int        @default(0)
+  currentStreak Int        @default(0) @map("current_streak")
+  maxStreak     Int        @default(0) @map("max_streak")
+  currentLossStreak Int    @default(0) @map("current_loss_streak")
+  maxLossStreak Int        @default(0) @map("max_loss_streak")
+  rockCount     Int        @default(0) @map("rock_count")
+  paperCount    Int        @default(0) @map("paper_count")
+  scissorsCount Int        @default(0) @map("scissors_count")
+  tournamentParticipations Int @default(0) @map("tournament_participations")
+  tournamentQualifierPasses Int @default(0) @map("tournament_qualifier_passes")
+  tournamentBracketEntries Int @default(0) @map("tournament_bracket_entries")
+  tournamentWins Int       @default(0) @map("tournament_wins")
+  tournamentSeconds Int    @default(0) @map("tournament_seconds")
+  tournamentThirds Int     @default(0) @map("tournament_thirds")
+  tournamentFourths Int    @default(0) @map("tournament_fourths")
+  spectateCount Int        @default(0) @map("spectate_count")
+  purchaseCount Int        @default(0) @map("purchase_count")
+  avatarId      String?    @map("avatar_id")
+  titleId       String?    @map("title_id")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  lastLoginAt   DateTime?  @map("last_login_at")
+  deletedAt     DateTime?  @map("deleted_at")
+
+  avatar   Avatar? @relation("UserEquippedAvatar", fields: [avatarId], references: [id], onDelete: SetNull)
+  title    Title?  @relation("UserEquippedTitle", fields: [titleId], references: [id], onDelete: SetNull)
+  settings UserSettings?
+  wallet   Wallet?
+
+  transactions WalletTransaction[]
+  inventory    Inventory[]
+  notifications Notification[]
+  auditLogs    AuditLog[]          @relation("AdminAuditLogs")
+  missions     UserMission[]
+  fraudSignals FraudSignal[]       @relation("FraudSignalUser")
+
+  matchesAsPlayer1 Match[] @relation("MatchPlayer1")
+  matchesAsPlayer2 Match[] @relation("MatchPlayer2")
+  matchesWon       Match[] @relation("MatchWinner")
+
+  tournamentEntries TournamentParticipant[]
+  tournamentMatchesAsP1 TournamentMatch[] @relation("TournamentMatchPlayer1")
+  tournamentMatchesAsP2 TournamentMatch[] @relation("TournamentMatchPlayer2")
+  tournamentMatchesWon  TournamentMatch[] @relation("TournamentMatchWinner")
+  refreshTokens    RefreshToken[]
+
+  @@index([status, createdAt])
+  @@index([role])
+  @@index([deletedAt])
+  @@index([wins])
+  @@index([currentStreak])
+  @@index([maxStreak])
+  @@map("users")
+}
+
+/// refresh token 회전용. 원문은 DB에 저장하지 않고 해시만 보관한다.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash") @db.VarChar(128)
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  replacedById String? @map("replaced_by_id")
+  userAgent String?   @map("user_agent") @db.VarChar(255)
+  ipAddress String?   @map("ip_address") @db.VarChar(64)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model UserSettings {
+  userId                 String  @id @map("user_id")
+  language               String  @default("ko") @db.VarChar(8)
+  bgmVolume              Float   @default(0.5) @map("bgm_volume")
+  effectVolume           Float   @default(0.8) @map("effect_volume")
+  vibration              Boolean @default(true)
+  tournamentNotification Boolean @default(true) @map("tournament_notification")
+  reducedMotion          Boolean @default(false) @map("reduced_motion")
+  autoChoice             Boolean @default(false) @map("auto_choice")
+  watchAutoNext          Boolean @default(true) @map("watch_auto_next")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+// ─────────────────────────────────────────────
+// Wallet / Ledger
+// ─────────────────────────────────────────────
+
+/// 지갑. version = 낙관적 락. 잔액 음수는 DB CHECK로 차단.
+model Wallet {
+  id            String   @id @default(cuid())
+  userId        String   @unique @map("user_id")
+  pointBalance  Int      @default(0) @map("point_balance")
+  ticketBalance Int      @default(0) @map("ticket_balance")
+  version       Int      @default(0)
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("wallets")
+}
+
+/// 모든 포인트·티켓 변동 원장. transactionKey UNIQUE → 중복 지급/차감 방지.
+model WalletTransaction {
+  id              String                @id @default(cuid())
+  userId          String                @map("user_id")
+  transactionKey  String                @unique @map("transaction_key") @db.VarChar(128)
+  assetType       AssetType             @map("asset_type")
+  transactionType WalletTransactionType @map("transaction_type")
+  reason          WalletTransactionReason @default(ADMIN_CREDIT)
+  amount          Int
+  balanceBefore   Int                   @map("balance_before")
+  balanceAfter    Int                   @map("balance_after")
+  referenceType   String?               @map("reference_type") @db.VarChar(64)
+  referenceId     String?               @map("reference_id") @db.VarChar(64)
+  description     String?               @db.VarChar(255)
+  metadata        Json?
+  createdAt       DateTime              @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([referenceType, referenceId])
+  @@index([assetType, transactionType])
+  @@map("wallet_transactions")
+}
+
+// ─────────────────────────────────────────────
+// Match
+// ─────────────────────────────────────────────
+
+model Match {
+  id          String      @id @default(cuid())
+  mode        MatchMode   @default(CASUAL)
+  status      MatchStatus @default(QUEUED)
+  entryPoint  Int         @default(0) @map("entry_point")
+  rewardPoint Int         @default(0) @map("reward_point")
+  player1Id   String?     @map("player1_id")
+  player2Id   String?     @map("player2_id")
+  winnerId    String?     @map("winner_id")
+  startedAt   DateTime?   @map("started_at")
+  completedAt DateTime?   @map("completed_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  player1 User? @relation("MatchPlayer1", fields: [player1Id], references: [id], onDelete: SetNull)
+  player2 User? @relation("MatchPlayer2", fields: [player2Id], references: [id], onDelete: SetNull)
+  winner  User? @relation("MatchWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+
+  rounds          MatchRound[]
+  tournamentMatch TournamentMatch?
+
+  @@index([status, createdAt])
+  @@index([player1Id, createdAt(sort: Desc)])
+  @@index([player2Id, createdAt(sort: Desc)])
+  @@index([mode, status])
+  @@map("matches")
+}
+
+model MatchRound {
+  id            String           @id @default(cuid())
+  matchId       String           @map("match_id")
+  roundNumber   Int              @map("round_number")
+  player1Choice RpsChoice?       @map("player1_choice")
+  player2Choice RpsChoice?       @map("player2_choice")
+  winnerId      String?          @map("winner_id")
+  status        MatchRoundStatus @default(PENDING)
+  startedAt     DateTime?        @map("started_at")
+  completedAt   DateTime?        @map("completed_at")
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, roundNumber])
+  @@index([matchId, status])
+  @@map("match_rounds")
+}
+
+// ─────────────────────────────────────────────
+// Tournament
+// ─────────────────────────────────────────────
+
+model Tournament {
+  id                 String           @id @default(cuid())
+  name               String           @db.VarChar(120)
+  type               TournamentType
+  status             TournamentStatus @default(DRAFT)
+  tier               TournamentTier   @default(REGULAR)
+  minParticipants    Int              @default(8) @map("min_participants")
+  maxParticipants    Int              @default(64) @map("max_participants")
+  /// 본선(브라켓) 목표 인원. 예선 소수결로 이 수 이하가 될 때까지 반복.
+  bracketTarget      Int              @default(16) @map("bracket_target")
+  entryTicket        Int              @default(1) @map("entry_ticket")
+  qualifierRule      String?          @map("qualifier_rule") @db.VarChar(255)
+  totalPrize         Int              @default(0) @map("total_prize")
+  /// 인원 미달 POSTPONED 시 티켓 자동 환불 (초기 정책 true)
+  refundOnPostpone   Boolean          @default(true) @map("refund_on_postpone")
+  currentRoundLabel  String?          @map("current_round_label") @db.VarChar(64)
+  version            Int              @default(0)
+  startsAt           DateTime         @map("starts_at")
+  registrationEndsAt DateTime         @map("registration_ends_at")
+  nextTransitionAt   DateTime?        @map("next_transition_at")
+  completedAt        DateTime?        @map("completed_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  participants   TournamentParticipant[]
+  bracketMatches TournamentMatch[]
+  rewards        TournamentReward[]
+  qualifierRounds TournamentQualifierRound[]
+
+  @@index([status, startsAt])
+  @@index([status, nextTransitionAt])
+  @@index([type, status])
+  @@map("tournaments")
+}
+
+/// 순위별 보상표 — 서버가 tournament-reward:{tournamentId}:{userId}:{rank} 로 지급
+model TournamentReward {
+  id           String @id @default(cuid())
+  tournamentId String @map("tournament_id")
+  rankFrom     Int    @map("rank_from")
+  rankTo       Int    @map("rank_to")
+  pointReward  Int    @map("point_reward")
+  label        String? @db.VarChar(64)
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, rankFrom, rankTo])
+  @@index([tournamentId])
+  @@map("tournament_rewards")
+}
+
+model TournamentQualifierRound {
+  id           String               @id @default(cuid())
+  tournamentId String               @map("tournament_id")
+  roundNumber  Int                  @map("round_number")
+  status       QualifierRoundStatus @default(PENDING)
+  endsAt       DateTime?            @map("ends_at")
+  aliveBefore  Int                  @default(0) @map("alive_before")
+  aliveAfter   Int?                 @map("alive_after")
+  minorityChoice RpsChoice?         @map("minority_choice")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  resolvedAt   DateTime?            @map("resolved_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  choices    TournamentQualifierChoice[]
+
+  @@unique([tournamentId, roundNumber])
+  @@index([tournamentId, status])
+  @@map("tournament_qualifier_rounds")
+}
+
+model TournamentQualifierChoice {
+  id         String     @id @default(cuid())
+  roundId    String     @map("round_id")
+  userId     String     @map("user_id")
+  choice     RpsChoice?
+  autoFilled Boolean    @default(false) @map("auto_filled")
+  submittedAt DateTime? @map("submitted_at")
+
+  round TournamentQualifierRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, userId])
+  @@index([userId])
+  @@map("tournament_qualifier_choices")
+}
+
+model TournamentParticipant {
+  id           String                      @id @default(cuid())
+  tournamentId String                      @map("tournament_id")
+  userId       String                      @map("user_id")
+  status       TournamentParticipantStatus @default(REGISTERED)
+  seed         Int?
+  finalRank    Int?                        @map("final_rank")
+  joinedAt     DateTime                    @default(now()) @map("joined_at")
+  eliminatedAt DateTime?                   @map("eliminated_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId, status])
+  @@index([userId, joinedAt(sort: Desc)])
+  @@map("tournament_participants")
+}
+
+model TournamentMatch {
+  id              String                @id @default(cuid())
+  tournamentId    String                @map("tournament_id")
+  round           Int
+  bracketPosition Int                   @map("bracket_position")
+  roundLabel      String?               @map("round_label") @db.VarChar(32)
+  player1Id       String?               @map("player1_id")
+  player2Id       String?               @map("player2_id")
+  winnerId        String?               @map("winner_id")
+  matchId         String?               @unique @map("match_id")
+  status          TournamentMatchStatus @default(PENDING)
+  nextMatchId     String?               @map("next_match_id")
+  /// 본선 1, 준결승·결승·3·4위전 2 (3판 2승)
+  winsRequired    Int                   @default(1) @map("wins_required")
+  player1Wins     Int                   @default(0) @map("player1_wins")
+  player2Wins     Int                   @default(0) @map("player2_wins")
+  isThirdPlace    Boolean               @default(false) @map("is_third_place")
+  startedAt       DateTime?             @map("started_at")
+  completedAt     DateTime?             @map("completed_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  player1    User?      @relation("TournamentMatchPlayer1", fields: [player1Id], references: [id], onDelete: SetNull)
+  player2    User?      @relation("TournamentMatchPlayer2", fields: [player2Id], references: [id], onDelete: SetNull)
+  winner     User?      @relation("TournamentMatchWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+  match      Match?     @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  nextMatch  TournamentMatch?  @relation("BracketAdvance", fields: [nextMatchId], references: [id], onDelete: SetNull)
+  previousMatches TournamentMatch[] @relation("BracketAdvance")
+
+  @@unique([tournamentId, round, bracketPosition])
+  @@index([tournamentId, status])
+  @@index([nextMatchId])
+  @@map("tournament_matches")
+}
+
+// ─────────────────────────────────────────────
+// Catalog / Inventory
+// ─────────────────────────────────────────────
+
+model Avatar {
+  id        String        @id @default(cuid())
+  name      String        @db.VarChar(64)
+  imageUrl  String        @map("image_url") @db.VarChar(512)
+  type      AvatarType    @default(BASIC)
+  price     Int           @default(0)
+  status    CatalogStatus @default(ACTIVE)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  equippedBy User[] @relation("UserEquippedAvatar")
+
+  @@index([status, type])
+  @@map("avatars")
+}
+
+model Title {
+  id              String        @id @default(cuid())
+  name            String        @unique @db.VarChar(64)
+  description     String?       @db.VarChar(255)
+  unlockCondition String?       @map("unlock_condition") @db.VarChar(255)
+  status          CatalogStatus @default(ACTIVE)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  equippedBy User[] @relation("UserEquippedTitle")
+
+  @@index([status])
+  @@map("titles")
+}
+
+/// 미션 카탈로그 (일일/주간/업적)
+model Mission {
+  id            String         @id @default(cuid())
+  code          String         @unique @db.VarChar(64)
+  title         String         @db.VarChar(120)
+  description   String?        @db.VarChar(255)
+  period        MissionPeriod  @default(DAILY)
+  metric        MissionMetric
+  goal          Int            @default(1)
+  rewardPoints  Int            @default(0) @map("reward_points")
+  rewardTickets Int            @default(0) @map("reward_tickets")
+  status        CatalogStatus  @default(ACTIVE)
+  sortOrder     Int            @default(0) @map("sort_order")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  progress UserMission[]
+
+  @@index([status, period, sortOrder])
+  @@map("missions")
+}
+
+/// 사용자별 미션 진행. periodKey 로 일/주 리셋 구분. 보상은 WalletTransaction.transactionKey 멱등.
+model UserMission {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  missionId   String    @map("mission_id")
+  periodKey   String    @map("period_key") @db.VarChar(32)
+  progress    Int       @default(0)
+  completedAt DateTime? @map("completed_at")
+  claimedAt   DateTime? @map("claimed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, missionId, periodKey])
+  @@index([userId, periodKey])
+  @@map("user_missions")
+}
+
+/// 상점 카탈로그 (seed "상점 상품"). soft archive: status=ARCHIVED
+model ShopItem {
+  id          String           @id @default(cuid())
+  name        String           @db.VarChar(80)
+  description String?          @db.VarChar(255)
+  category    ShopItemCategory
+  pricePoints Int              @default(0) @map("price_points")
+  priceTickets Int             @default(0) @map("price_tickets")
+  quantityGrant Int            @default(1) @map("quantity_grant")
+  icon        String?          @db.VarChar(32)
+  status      CatalogStatus    @default(ACTIVE)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@index([status, category])
+  @@map("shop_items")
+}
+
+model Inventory {
+  id         String           @id @default(cuid())
+  userId     String           @map("user_id")
+  itemType   InventoryItemType @map("item_type")
+  itemId     String           @map("item_id") @db.VarChar(64)
+  quantity   Int              @default(1)
+  equipped   Boolean          @default(false)
+  acquiredAt DateTime         @default(now()) @map("acquired_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemType, itemId])
+  @@index([userId, equipped])
+  @@map("inventory")
+}
+
+// ─────────────────────────────────────────────
+// Notification / Audit
+// ─────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String           @db.VarChar(120)
+  content   String           @db.Text
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  adminUserId String?  @map("admin_user_id")
+  action      String   @db.VarChar(80)
+  targetType  String   @map("target_type") @db.VarChar(64)
+  targetId    String   @map("target_id") @db.VarChar(64)
+  beforeData  Json?    @map("before_data")
+  afterData   Json?    @map("after_data")
+  reason      String?  @db.VarChar(255)
+  ipAddress   String?  @map("ip_address") @db.VarChar(64)
+  userAgent   String?  @map("user_agent") @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  adminUser User? @relation("AdminAuditLogs", fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([targetType, targetId])
+  @@index([adminUserId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@map("audit_logs")
+}
+
+/// 관리자 공지. 노출 구간(startsAt~endsAt) + 우선순위 + 일반/긴급
+model Notice {
+  id          String       @id @default(cuid())
+  title       String       @db.VarChar(140)
+  content     String       @db.Text
+  level       NoticeLevel  @default(NORMAL)
+  status      NoticeStatus @default(DRAFT)
+  priority    Int          @default(0)
+  pinned      Boolean      @default(false)
+  /// 푸시 발송 준비 상태 (실제 발송은 이후 단계)
+  pushEnabled Boolean      @default(false) @map("push_enabled")
+  pushQueuedAt DateTime?   @map("push_queued_at")
+  startsAt    DateTime     @map("starts_at")
+  endsAt      DateTime?    @map("ends_at")
+  createdById String?      @map("created_by_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@index([status, startsAt])
+  @@index([status, priority(sort: Desc)])
+  @@map("notices")
+}
+
+/// 운영 오류 로그 (대시보드 "오류 수" / 모니터링 탭)
+model SystemErrorLog {
+  id         String           @id @default(cuid())
+  level      SystemErrorLevel @default(ERROR)
+  code       String           @db.VarChar(64)
+  message    String           @db.VarChar(500)
+  scope      String?          @db.VarChar(64)
+  userId     String?          @map("user_id")
+  requestId  String?          @map("request_id") @db.VarChar(64)
+  context    Json?
+  resolvedAt DateTime?        @map("resolved_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  @@index([createdAt(sort: Desc)])
+  @@index([level, createdAt(sort: Desc)])
+  @@map("system_error_logs")
+}
+
+enum FraudSignalType {
+  RAPID_CHOICE
+  REPEATED_DISCONNECT
+  SAME_OPPONENT_REMATCH
+  MULTI_ACCOUNT_SAME_IP
+  ABNORMAL_WINRATE
+  ABNORMAL_POINT_GAIN
+  REPEATED_REWARD
+  REPLAY_ATTEMPT
+  PERMISSION_DENIED
+}
+
+enum FraudSeverity {
+  INFO
+  WARN
+  CRITICAL
+}
+
+enum FraudSignalStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  IGNORED
+}
+
+/// 부정 이용 탐지 신호. 초기 정책: 차단이 아닌 로그·관리자 경고 중심.
+model FraudSignal {
+  id           String            @id @default(cuid())
+  type         FraudSignalType
+  severity     FraudSeverity     @default(WARN)
+  status       FraudSignalStatus @default(OPEN)
+  userId       String?           @map("user_id")
+  /// 동일 신호 중복 누적을 막기 위한 그룹 키 (예: rapid_choice:{userId}:{day})
+  dedupeKey    String?           @map("dedupe_key") @db.VarChar(160)
+  hitCount     Int               @default(1) @map("hit_count")
+  message      String            @db.VarChar(500)
+  context      Json?
+  reviewedById String?           @map("reviewed_by_id")
+  reviewedAt   DateTime?         @map("reviewed_at")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  user User? @relation("FraudSignalUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([dedupeKey])
+  @@index([status, severity, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([type, createdAt(sort: Desc)])
+  @@map("fraud_signals")
+}
