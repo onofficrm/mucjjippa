@@ -1,0 +1,314 @@
+/**
+ * iCRM Hub — module style harmonization (Quiet Premium)
+ * Loaded after module inline styles inside Hub shell.
+ */
+.icrm-app .icc-module,
+.icrm-app .g5b-seo-admin,
+.icrm-app .icrm-pts-wrap {
+    font-family: var(--icrm-font);
+    color: var(--icrm-text);
+    letter-spacing: -0.01em;
+}
+
+/* ── Content collector ── */
+.icrm-app .icc-stat::before {
+    display: none;
+}
+
+.icrm-app .icc-stat__num {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--icrm-text);
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    font-variant-numeric: tabular-nums;
+}
+
+.icrm-app .icc-stat,
+.icrm-app .icc-panel,
+.icrm-app .icc-stat-mini {
+    border-color: var(--icrm-border);
+    border-radius: var(--icrm-radius-lg);
+    box-shadow: var(--icrm-shadow-xs);
+}
+
+.icrm-app .icc-tab.is-active {
+    background: var(--icrm-text);
+    color: #fff;
+    box-shadow: none;
+}
+
+.icrm-app .icc-tab:hover {
+    color: var(--icrm-text);
+    background: var(--icrm-border-light);
+}
+
+.icrm-app .icc-btn {
+    border-radius: var(--icrm-radius-md);
+    font-weight: 600;
+    border-color: var(--icrm-border);
+}
+
+.icrm-app .icc-btn--primary {
+    background: var(--icrm-text);
+    border-color: var(--icrm-text);
+    color: #fff;
+    box-shadow: none;
+}
+
+.icrm-app .icc-btn--primary:hover {
+    background: #27272a;
+    border-color: #27272a;
+    box-shadow: none;
+    transform: none;
+}
+
+.icrm-app .icc-btn:hover {
+    border-color: var(--icrm-muted-light);
+    box-shadow: none;
+}
+
+.icrm-app .icc-badge--accent {
+    background: var(--icrm-accent-soft);
+    color: var(--icrm-accent);
+}
+
+.icrm-app .icc-table tbody tr:hover td {
+    background: var(--icrm-canvas);
+}
+
+.icrm-app .icc-content-title:hover {
+    color: var(--icrm-accent);
+}
+
+.icrm-app .icc-bulk-bar {
+    background: var(--icrm-warn-soft);
+    border-color: var(--icrm-warn-border);
+}
+
+.icrm-app .icc-bulk-bar strong {
+    color: var(--icrm-warn);
+}
+
+.icrm-app .icc-toolbar {
+    background: var(--icrm-canvas);
+    border-color: var(--icrm-border);
+    border-radius: var(--icrm-radius-md);
+}
+
+.icrm-app .icc-step__num {
+    background: var(--icrm-text);
+    box-shadow: none;
+}
+
+.icrm-app .icc-source-card.is-active {
+    background: var(--icrm-surface);
+    border-color: var(--icrm-accent-muted);
+    box-shadow: var(--icrm-shadow-xs);
+}
+
+.icrm-app .icc-source-card.is-active::after {
+    background: var(--icrm-text);
+}
+
+.icrm-app .icc-source-card:hover {
+    box-shadow: var(--icrm-shadow-xs);
+    border-color: var(--icrm-border);
+    transform: translateY(-1px);
+}
+
+.icrm-app .icc-segmented input:checked + span {
+    border-color: var(--icrm-text);
+    background: var(--icrm-border-light);
+    color: var(--icrm-text);
+    box-shadow: none;
+}
+
+.icrm-app .icc-cta {
+    background: var(--icrm-text);
+    border-radius: var(--icrm-radius-lg);
+    box-shadow: var(--icrm-shadow-sm);
+}
+
+.icrm-app .icc-cta .icc-btn--primary {
+    background: #fff;
+    color: var(--icrm-text);
+    box-shadow: none;
+}
+
+.icrm-app .icc-guide {
+    border-color: var(--icrm-border);
+    background: var(--icrm-surface);
+    color: var(--icrm-text-secondary);
+}
+
+.icrm-app .icc-guide:hover {
+    box-shadow: var(--icrm-shadow-xs);
+}
+
+.icrm-app .icc-form-row input:focus,
+.icrm-app .icc-form-row select:focus,
+.icrm-app .icc-form-row textarea:focus,
+.icrm-app .icc-field:focus {
+    border-color: var(--icrm-muted-light);
+    box-shadow: 0 0 0 3px rgba(24, 24, 27, 0.06);
+}
+
+/* ── Rank check ── */
+.icrm-app .icrk-card span {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+.icrm-app .icrk-btn {
+    background: var(--icrm-text);
+    border-radius: var(--icrm-radius-md);
+    box-shadow: none;
+    font-weight: 600;
+}
+
+.icrm-app .icrk-btn:hover {
+    filter: none;
+    background: #27272a;
+}
+
+.icrm-app .icrk-btn--light {
+    background: var(--icrm-surface);
+    color: var(--icrm-text-secondary);
+    border: 1px solid var(--icrm-border);
+}
+
+.icrm-app .icrk-badge {
+    background: var(--icrm-accent-soft);
+    color: var(--icrm-accent);
+}
+
+.icrm-app .icrk-chip {
+    background: var(--icrm-canvas);
+    border-color: var(--icrm-border);
+    color: var(--icrm-text-secondary);
+}
+
+.icrm-app .icrk-table tr:hover td {
+    background: var(--icrm-canvas);
+}
+
+/* ── SEO meta ── */
+.icrm-app .g5b-seo-admin .g5b-panel {
+    border-color: var(--icrm-border);
+    border-radius: var(--icrm-radius-lg);
+    box-shadow: var(--icrm-shadow-xs);
+}
+
+.icrm-app .g5b-seo-admin .btn_submit,
+.icrm-app .g5b-seo-admin .btn {
+    background: var(--icrm-text);
+    color: #fff;
+    box-shadow: none;
+    border-radius: var(--icrm-radius-md);
+}
+
+.icrm-app .g5b-seo-admin .btn_submit:hover,
+.icrm-app .g5b-seo-admin .btn:hover {
+    background: #27272a;
+}
+
+.icrm-app .g5b-seo-admin .btn_02,
+.icrm-app .g5b-seo-admin .btn_03 {
+    background: var(--icrm-surface);
+    color: var(--icrm-text-secondary);
+    border: 1px solid var(--icrm-border);
+}
+
+.icrm-app .g5b-seo-admin .btn_02:hover,
+.icrm-app .g5b-seo-admin .btn_03:hover {
+    background: var(--icrm-border-light);
+}
+
+.icrm-app .g5b-seo-health-stat {
+    border-color: var(--icrm-border);
+    border-radius: var(--icrm-radius-lg);
+    box-shadow: none;
+}
+
+.icrm-app .g5b-seo-health-stat strong {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+.icrm-app .g5b-seo-health-stat--accent strong {
+    color: var(--icrm-accent);
+}
+
+.icrm-app .g5b-seo-health-stat--warn strong {
+    color: var(--icrm-warn);
+}
+
+.icrm-app .g5b-seo-health-bulk {
+    background: var(--icrm-warn-soft);
+    border-color: var(--icrm-warn-border);
+}
+
+.icrm-app .g5b-seo-health-bulk strong {
+    color: var(--icrm-warn);
+}
+
+.icrm-app .g5b-seo-geo-grade {
+    background: var(--icrm-accent-soft);
+    color: var(--icrm-accent);
+}
+
+.icrm-app .g5b-seo-admin .g5b-seo-bulk-progress__bar {
+    background: var(--icrm-text);
+}
+
+.icrm-app .g5b-seo-admin .g5b-seo-form .frm_input:focus {
+    border-color: var(--icrm-muted-light);
+    box-shadow: 0 0 0 3px rgba(24, 24, 27, 0.06);
+}
+
+.icrm-app .g5b-seo-admin .tbl_head01 tr:hover td {
+    background: var(--icrm-canvas);
+}
+
+/* ── Points ── */
+.icrm-app .icrm-pts-btn {
+    background: var(--icrm-text);
+    border-radius: var(--icrm-radius-md);
+    box-shadow: none;
+}
+
+.icrm-app .icrm-pts-btn:hover {
+    background: #27272a;
+}
+
+.icrm-app .icrm-pts-btn--ghost {
+    background: var(--icrm-surface);
+    color: var(--icrm-text-secondary);
+    border: 1px solid var(--icrm-border);
+}
+
+.icrm-app .icrm-pts-card,
+.icrm-app .icrm-pts-panel {
+    border-color: var(--icrm-border);
+    border-radius: var(--icrm-radius-lg);
+    box-shadow: var(--icrm-shadow-xs);
+}
+
+.icrm-app .icrm-pts-card span {
+    font-variant-numeric: tabular-nums;
+}
+
+.icrm-app .icrm-pts-bank {
+    background: var(--icrm-canvas);
+    border-color: var(--icrm-border);
+}
+
+.icrm-app .icrm-pts-bank-badge {
+    background: var(--icrm-text);
+}
+
+.icrm-app .icrm-pts-pager a.on {
+    background: var(--icrm-text);
+    border-color: var(--icrm-text);
+}

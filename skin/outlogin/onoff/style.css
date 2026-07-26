@@ -1,0 +1,148 @@
+@charset "utf-8";
+@import url("../../../css/onoff-platform.css");
+
+/* onoff outlogin — 보조 (공통은 onoff-platform.css) */
+
+.onoff-platform--outlogin.ol {
+  position: relative;
+  margin-bottom: 15px;
+  border: 1px solid var(--icrm-border, #e4e4e7);
+  border-radius: var(--onoff-radius, 12px);
+  background: var(--icrm-surface, #fff);
+  box-shadow: var(--onoff-shadow);
+  overflow: hidden;
+}
+
+.onoff-platform--outlogin .onoff-platform__outlogin-head {
+  display: flex;
+  border-bottom: 1px solid var(--icrm-border-light, #f4f4f5);
+}
+
+.onoff-platform--outlogin .onoff-platform__outlogin-head h2,
+.onoff-platform--outlogin .onoff-platform__outlogin-head .join {
+  flex: 1;
+  margin: 0;
+  padding: 12px 0;
+  text-align: center;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.onoff-platform--outlogin .onoff-platform__outlogin-head .join {
+  background: var(--onoff-accent-soft, #f0fdfa);
+  color: var(--onoff-accent, #0d9488);
+  text-decoration: none;
+}
+
+.onoff-platform--outlogin form {
+  padding: 16px;
+}
+
+.onoff-platform--outlogin .ol_wr .frm_input {
+  margin-bottom: 8px;
+}
+
+.onoff-platform--outlogin #ol_submit {
+  margin-top: 4px;
+}
+
+.onoff-platform--outlogin .ol_auto_wr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.82rem;
+}
+
+.onoff-platform--outlogin #ol_svc a {
+  color: var(--onoff-accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.onoff-platform--outlogin #ol_after_hd {
+  position: relative;
+  padding: 14px 14px 14px 72px;
+  min-height: 72px;
+  border-bottom: 1px solid var(--icrm-border-light, #f4f4f5);
+}
+
+.onoff-platform--outlogin #ol_after_hd strong {
+  display: block;
+  margin: 4px 0 8px;
+  font-size: 0.95rem;
+}
+
+.onoff-platform--outlogin #ol_after_hd .profile_img {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+}
+
+.onoff-platform--outlogin #ol_after_hd .profile_img img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--icrm-border, #e4e4e7);
+}
+
+.onoff-platform--outlogin #ol_after_info {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--icrm-border, #e4e4e7);
+  border-radius: var(--onoff-radius-sm, 8px);
+  color: var(--onoff-accent);
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+
+.onoff-platform--outlogin #ol_after_private a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  color: var(--icrm-text-secondary, #3f3f46);
+  text-decoration: none;
+  border-bottom: 1px solid var(--icrm-border-light, #f4f4f5);
+}
+
+.onoff-platform--outlogin #ol_after_private a:hover {
+  background: var(--onoff-accent-soft, #f0fdfa);
+  color: var(--onoff-accent);
+}
+
+.onoff-platform--outlogin #ol_after_private strong {
+  color: var(--onoff-accent);
+  font-size: 0.88rem;
+}
+
+.onoff-platform--outlogin #ol_after_logout {
+  display: block;
+  padding: 14px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--icrm-muted, #71717a);
+  text-decoration: none;
+}
+
+.onoff-platform--outlogin #ol_after_logout:hover {
+  color: var(--onoff-accent);
+  background: var(--onoff-accent-soft, #f0fdfa);
+}
+
+.onoff-platform--outlogin .login-sns {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--icrm-border-light, #f4f4f5);
+}
+
+.onoff-platform--outlogin .chk_box input[type="checkbox"] + label span {
+  border-radius: 4px;
+  border-color: var(--icrm-border, #e4e4e7);
+}
+
+.onoff-platform--outlogin .chk_box input[type="checkbox"]:checked + label span {
+  background: var(--onoff-accent);
+  border-color: var(--onoff-accent);
+}

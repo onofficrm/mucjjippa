@@ -1,0 +1,558 @@
+/**
+ * SEO 메타 관리 — premium admin UI (iCRM Hub)
+ */
+.g5b-seo-admin {
+    --seo-bg: #f1f5f9;
+    --seo-surface: #ffffff;
+    --seo-surface-2: #f8fafc;
+    --seo-border: #e2e8f0;
+    --seo-border-soft: #f1f5f9;
+    --seo-text: #0f172a;
+    --seo-muted: #64748b;
+    --seo-accent: #1d4ed8;
+    --seo-accent-hover: #1e40af;
+    --seo-accent-soft: #eff6ff;
+    --seo-success: #059669;
+    --seo-radius: 14px;
+    --seo-radius-sm: 10px;
+    --seo-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 28px rgba(15, 23, 42, 0.06);
+    --seo-shadow-lg: 0 4px 6px rgba(15, 23, 42, 0.04), 0 20px 40px rgba(15, 23, 42, 0.08);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+    color: var(--seo-text);
+    line-height: 1.5;
+}
+
+/* ── Sub tabs ── */
+.g5b-seo-admin .g5b-seo-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 20px;
+    padding: 4px;
+    background: var(--seo-surface);
+    border: 1px solid var(--seo-border);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.g5b-seo-admin .g5b-seo-tabs a {
+    padding: 9px 16px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--seo-muted);
+    font-size: 13px;
+    font-weight: 500;
+    transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.g5b-seo-admin .g5b-seo-tabs a:hover {
+    color: var(--seo-text);
+    background: var(--seo-surface-2);
+}
+
+.g5b-seo-admin .g5b-seo-tabs a.is-active {
+    color: #fff;
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+
+/* ── Panels ── */
+.g5b-seo-admin .g5b-seo-panel {
+    background: var(--seo-surface);
+    border: 1px solid var(--seo-border);
+    border-radius: var(--seo-radius);
+    padding: 24px 28px;
+    margin-bottom: 20px;
+    box-shadow: var(--seo-shadow);
+}
+
+.g5b-seo-admin .g5b-seo-panel h2 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--seo-text);
+}
+
+.g5b-seo-admin .g5b-seo-panel .g5b-seo-desc {
+    margin: 0 0 20px;
+    color: var(--seo-muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* ── Editor shell ── */
+.g5b-seo-editor {
+    margin: 0;
+}
+
+.g5b-seo-editor__head {
+    margin-bottom: 24px;
+}
+
+.g5b-seo-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--seo-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.g5b-seo-back:hover {
+    color: var(--seo-accent);
+}
+
+.g5b-seo-editor__title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.g5b-seo-editor__title-row h2 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+}
+
+.g5b-seo-path-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--seo-accent);
+    background: var(--seo-accent-soft);
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+}
+
+.g5b-seo-editor__lead {
+    margin: 0;
+    font-size: 13px;
+    color: var(--seo-muted);
+}
+
+/* ── Two-column layout ── */
+.g5b-seo-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+    gap: 24px;
+    align-items: start;
+}
+
+@media (max-width: 1024px) {
+    .g5b-seo-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.g5b-seo-layout__form {
+    min-width: 0;
+}
+
+.g5b-seo-layout__preview {
+    position: sticky;
+    top: 16px;
+}
+
+/* ── Form sections ── */
+.g5b-seo-section {
+    background: var(--seo-surface);
+    border: 1px solid var(--seo-border);
+    border-radius: var(--seo-radius);
+    padding: 22px 24px;
+    margin-bottom: 16px;
+    box-shadow: var(--seo-shadow);
+}
+
+.g5b-seo-section__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--seo-border-soft);
+}
+
+.g5b-seo-section__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 14px;
+    background: var(--seo-accent-soft);
+    color: var(--seo-accent);
+    flex-shrink: 0;
+}
+
+.g5b-seo-section__title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--seo-text);
+}
+
+.g5b-seo-section__sub {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--seo-muted);
+    font-weight: 400;
+}
+
+/* ── Fields ── */
+.g5b-seo-field {
+    margin-bottom: 18px;
+}
+
+.g5b-seo-field:last-child {
+    margin-bottom: 0;
+}
+
+.g5b-seo-field__label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.g5b-seo-field label,
+.g5b-seo-field__label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--seo-text);
+}
+
+.g5b-seo-field__hint {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--seo-muted);
+}
+
+.g5b-seo-field__counter {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--seo-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.g5b-seo-field__counter.is-warn {
+    color: #d97706;
+}
+
+.g5b-seo-field__counter.is-over {
+    color: #dc2626;
+}
+
+.g5b-seo-field input[type="text"],
+.g5b-seo-field input[type="url"],
+.g5b-seo-field textarea,
+.g5b-seo-field select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--seo-text);
+    background: var(--seo-surface-2);
+    border: 1px solid var(--seo-border);
+    border-radius: var(--seo-radius-sm);
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.g5b-seo-field textarea {
+    min-height: 96px;
+    resize: vertical;
+}
+
+.g5b-seo-field input:focus,
+.g5b-seo-field textarea:focus,
+.g5b-seo-field select:focus {
+    outline: none;
+    background: var(--seo-surface);
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.g5b-seo-field__help {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: var(--seo-muted);
+    line-height: 1.5;
+}
+
+.g5b-seo-field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 640px) {
+    .g5b-seo-field-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Featured image ── */
+.g5b-seo-image-field {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+@media (max-width: 520px) {
+    .g5b-seo-image-field {
+        grid-template-columns: 1fr;
+    }
+}
+
+.g5b-seo-image-field__preview {
+    width: 120px;
+    height: 120px;
+    border-radius: var(--seo-radius-sm);
+    border: 2px dashed var(--seo-border);
+    background: var(--seo-surface-2);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.g5b-seo-image-field__preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.g5b-seo-image-field__preview.is-empty::after {
+    content: "1200×630";
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    letter-spacing: 0.02em;
+}
+
+.g5b-seo-image-field__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+/* ── FAQ items ── */
+.g5b-seo-faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.g5b-seo-faq-item {
+    padding: 16px 18px;
+    background: var(--seo-surface-2);
+    border: 1px solid var(--seo-border);
+    border-radius: var(--seo-radius-sm);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.g5b-seo-faq-item:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.g5b-seo-faq-item__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.g5b-seo-faq-item__num {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--seo-accent);
+}
+
+.g5b-seo-faq-item .g5b-seo-field {
+    margin-bottom: 12px;
+}
+
+.g5b-seo-faq-add {
+    margin-top: 12px;
+}
+
+/* ── Action bar ── */
+.g5b-seo-editor__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    padding: 18px 22px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, #fff 100%);
+    border: 1px solid var(--seo-border);
+    border-radius: var(--seo-radius);
+    box-shadow: var(--seo-shadow-lg);
+    backdrop-filter: blur(8px);
+}
+
+.g5b-seo-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    border-radius: var(--seo-radius-sm);
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform 0.12s, box-shadow 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.g5b-seo-btn:active {
+    transform: translateY(1px);
+}
+
+.g5b-seo-btn--primary {
+    color: #fff;
+    background: linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #3b82f6 100%);
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35);
+}
+
+.g5b-seo-btn--primary:hover {
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.45);
+}
+
+.g5b-seo-btn--secondary {
+    color: var(--seo-accent);
+    background: var(--seo-surface);
+    border-color: #bfdbfe;
+}
+
+.g5b-seo-btn--secondary:hover {
+    background: var(--seo-accent-soft);
+    border-color: #93c5fd;
+}
+
+.g5b-seo-btn--ghost {
+    color: var(--seo-muted);
+    background: transparent;
+    border-color: var(--seo-border);
+}
+
+.g5b-seo-btn--ghost:hover {
+    color: var(--seo-text);
+    background: var(--seo-surface-2);
+}
+
+.g5b-seo-btn--ai {
+    color: #6d28d9;
+    background: linear-gradient(135deg, #faf5ff 0%, #f5f3ff 100%);
+    border-color: #ddd6fe;
+}
+
+.g5b-seo-btn--ai:hover {
+    background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%);
+    border-color: #c4b5fd;
+}
+
+.g5b-seo-btn--sm {
+    padding: 8px 14px;
+    font-size: 12px;
+}
+
+/* ── List table premium ── */
+.g5b-seo-admin .g5b-seo-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--seo-border);
+    border-radius: var(--seo-radius-sm);
+}
+
+.g5b-seo-admin .g5b-seo-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.g5b-seo-admin .g5b-seo-table th {
+    padding: 12px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--seo-muted);
+    background: var(--seo-surface-2);
+    border-bottom: 1px solid var(--seo-border);
+}
+
+.g5b-seo-admin .g5b-seo-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--seo-border-soft);
+    vertical-align: middle;
+}
+
+.g5b-seo-admin .g5b-seo-table tr:last-child td {
+    border-bottom: none;
+}
+
+.g5b-seo-admin .g5b-seo-table tr:hover td {
+    background: #fafbfc;
+}
+
+.g5b-seo-admin .g5b-seo-table code {
+    font-size: 12px;
+    padding: 2px 8px;
+    background: var(--seo-surface-2);
+    border-radius: 4px;
+    color: var(--seo-accent);
+}
+
+/* ── Alerts ── */
+.g5b-seo-admin .g5b-seo-alert {
+    padding: 14px 18px;
+    border-radius: var(--seo-radius-sm);
+    margin-bottom: 16px;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.g5b-seo-admin .g5b-seo-alert--info {
+    background: var(--seo-accent-soft);
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+}
+
+.g5b-seo-admin .g5b-seo-alert--warn {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+}
+
+.g5b-seo-admin .g5b-seo-alert--success {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+}
+
+/* ── Legacy table compat inside editor ── */
+.g5b-seo-admin .g5b-seo-form-table {
+    display: none;
+}

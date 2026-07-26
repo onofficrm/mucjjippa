@@ -1,0 +1,278 @@
+@charset "utf-8";
+/* @onoff-platform-managed — 회원 스킨 보조 (공통은 css/onoff-platform.css) */
+
+.onoff-platform .mb_log_cate h2,
+.onoff-platform .mb_log_cate .join {
+  display: none;
+}
+
+.onoff-platform #fregister > p {
+  margin: -18px 0 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #5f6673;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  text-align: center;
+}
+
+.onoff-platform #fregister > p:before {
+  display: none;
+}
+
+.onoff-platform #fregister section,
+.onoff-platform .register_form_inner {
+  margin: 0 0 16px;
+  overflow: hidden;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.onoff-platform #fregister h2,
+.onoff-platform #register_form h2 {
+  margin: 0;
+  padding: 0 0 16px;
+  border-bottom: 0;
+  background: transparent;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #071827;
+  text-align: left;
+}
+
+.onoff-platform #fregister section {
+  border: 0;
+}
+
+.onoff-platform #fregister textarea {
+  display: block;
+  min-height: 130px;
+  padding: 18px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fff;
+  color: #071827;
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.onoff-platform .fregister_terms div {
+  padding: 0;
+  background: #fff;
+  overflow-x: auto;
+}
+
+.onoff-platform .fregister_terms table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.onoff-platform .fregister_terms th,
+.onoff-platform .fregister_terms td {
+  padding: 14px 12px;
+  border: 1px solid #e4e7ec;
+  text-align: left;
+  vertical-align: top;
+}
+
+.onoff-platform .fregister_terms th {
+  background: #fafafa;
+  font-weight: 800;
+}
+
+.onoff-platform .fregister_agree {
+  position: static;
+  margin: 18px 0 28px;
+  padding: 0;
+  border-top: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 1.05rem;
+  color: #4b5563;
+}
+
+.onoff-platform #fregister_chkall {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: auto;
+  margin: 0 0 28px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-weight: 800;
+  justify-content: flex-start;
+}
+
+.onoff-platform .register .btn_confirm {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 14px;
+  margin-top: 20px;
+  text-align: left;
+}
+
+.onoff-platform .register .btn_confirm .btn_submit,
+.onoff-platform .register .btn_confirm .btn_close {
+  float: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 58px;
+  margin: 0;
+  border-radius: 12px;
+  font-size: 1.05rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.onoff-platform .register .btn_confirm .btn_close {
+  border: 1px solid #e4e7ec;
+  background: #fff;
+  color: #071827;
+}
+
+.onoff-platform .register .btn_confirm .btn_close:hover {
+  border-color: #d8dde5;
+  background: #fff;
+}
+
+.onoff-platform #register_form {
+  background: transparent;
+}
+
+.onoff-platform .register_form_inner ul {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+}
+
+.onoff-platform .register_form_inner li {
+  margin: 0;
+}
+
+.onoff-platform .register_form_inner label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #071827;
+}
+
+.onoff-platform .half_input,
+.onoff-platform .left_input,
+.onoff-platform .margin_input {
+  float: none;
+  width: 100%;
+  margin: 0;
+}
+
+.onoff-platform .btn_frmline,
+.onoff-platform .js-open-consent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--onoff-accent);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.onoff-platform .btn_frmline:hover,
+.onoff-platform .js-open-consent:hover {
+  background: #f6f7fb;
+}
+
+.onoff-platform .captcha {
+  margin-top: 18px;
+}
+
+.onoff-platform .chk_box input[type="checkbox"],
+.onoff-platform .fregister_agree input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  margin: 0 10px 0 0;
+  vertical-align: middle;
+}
+
+.onoff-platform .chk_box label span,
+.onoff-platform .fregister_agree label span {
+  display: none !important;
+}
+
+.onoff-platform .chk_box label {
+  cursor: pointer;
+}
+
+.onoff-platform .new_win {
+  position: static;
+  left: auto;
+  top: auto;
+  width: auto;
+  min-height: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.onoff-platform #find_info.new_win .new_win_con {
+  padding: 0;
+}
+
+.onoff-platform #find_info.cert {
+  max-width: 720px;
+}
+
+.onoff-platform #find_info.cert .new_win_con {
+  float: none;
+  width: auto;
+  margin: 0 0 16px;
+}
+
+.onoff-platform #find_info.cert .new_win_con:nth-child(2) {
+  margin-left: 0;
+}
+
+.onoff-platform #find_info .find_btn {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e4e7ec;
+}
+
+.onoff-platform #find_info .cert_btn {
+  display: grid;
+  gap: 8px;
+}
+
+.onoff-platform #find_info .find_btn .btn_submit {
+  width: 100%;
+}
+
+.onoff-platform #profile.new_win {
+  padding: 0;
+}
+
+.onoff-platform #profile #win_title {
+  margin: 0 0 16px;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+@media (max-width: 767px) {
+  .onoff-platform .register .btn_confirm {
+    flex-direction: column-reverse;
+  }
+}

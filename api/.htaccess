@@ -1,0 +1,13 @@
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^auto-comment/generate/?$ auto-comment/generate/index.php [L,QSA]
+RewriteRule ^seo-meta/generate/?$ seo-meta/generate/index.php [L,QSA]
+RewriteRule ^site/point-balance/?$ site/point-balance/index.php [L,QSA]
+RewriteRule ^content-collector/collect/?$ content-collector/collect/index.php [L,QSA]
+RewriteRule ^g5-update/manifest/?$ g5-update/manifest/index.php [L,QSA]
+RewriteRule ^g5-update/file/?$ g5-update/file/index.php [L,QSA]
+RewriteRule ^builder-deploy/manifest/?$ builder-deploy/manifest/index.php [L,QSA]
+RewriteRule ^builder-deploy/file/?$ builder-deploy/file/index.php [L,QSA]
+RewriteRule ^builder-deploy/publish/?$ builder-deploy/publish/index.php [L,QSA]
+RewriteRule ^builder-deploy/build-source/?$ builder-deploy/build-source/index.php [L,QSA]

@@ -1,0 +1,313 @@
+@charset "utf-8";
+
+.icrm-update-panel {
+  --ob-primary: #0d9488;
+  --ob-primary-dark: #0f766e;
+  --ob-bg: #f8fafc;
+  --ob-card: #fff;
+  --ob-border: #e5e7eb;
+  --ob-text: #111827;
+  --ob-sub: #6b7280;
+  --ob-success: #10b981;
+  --ob-warning: #f59e0b;
+  --ob-danger: #ef4444;
+  max-width: 960px;
+  font-family: Pretendard, "Noto Sans KR", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.icrm-update-panel .icu-card {
+  background: var(--ob-card);
+  border: 1px solid var(--ob-border);
+  border-radius: 18px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  box-shadow: 0 14px 38px rgba(15, 23, 42, 0.045);
+}
+
+.icrm-update-panel .icu-card h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  color: var(--ob-text);
+}
+
+.icrm-update-panel .icu-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.icrm-update-panel .icu-row:last-child {
+  border-bottom: 0;
+}
+
+.icrm-update-panel .icu-label {
+  color: var(--ob-sub);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.icrm-update-panel .icu-val {
+  min-width: 0;
+  color: var(--ob-text);
+  font-weight: 800;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.icrm-update-panel .icu-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.icrm-update-panel .icu-badge--ok {
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+}
+
+.icrm-update-panel .icu-badge--warn {
+  background: rgba(245, 158, 11, 0.13);
+  color: #b45309;
+}
+
+.icrm-update-panel .icu-badge--muted {
+  background: rgba(239, 68, 68, 0.1);
+  color: #b91c1c;
+}
+
+.icrm-update-panel .icu-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.icrm-update-panel .ob-form-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.icrm-update-panel .ob-form-field {
+  display: grid;
+  gap: 7px;
+}
+
+.icrm-update-panel .ob-form-field span {
+  color: var(--ob-text);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.icrm-update-panel .ob-form-field b {
+  color: var(--ob-danger);
+}
+
+.icrm-update-panel .ob-form-field em {
+  color: var(--ob-sub);
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.5;
+}
+
+.icrm-update-panel .ob-input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #fff;
+  padding: 0 13px;
+  color: var(--ob-text);
+  font-size: 13px;
+  font-weight: 700;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.icrm-update-panel .ob-input:focus {
+  border-color: var(--ob-primary);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.14);
+}
+
+.icrm-update-panel .icu-btn {
+  min-height: 42px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.icrm-update-panel .icu-btn:hover {
+  transform: translateY(-1px);
+}
+
+.icrm-update-panel .icu-btn--primary {
+  border-color: var(--ob-primary);
+  background: var(--ob-primary);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(13, 148, 136, 0.2);
+}
+
+.icrm-update-panel .icu-btn--primary:hover {
+  border-color: var(--ob-primary-dark);
+  background: var(--ob-primary-dark);
+}
+
+.icrm-update-panel .icu-btn--ghost {
+  background: #fff;
+  border: 1px solid var(--ob-border);
+  color: #334155;
+}
+
+.icrm-update-panel .icu-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.icrm-update-panel .icu-msg {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  display: none;
+}
+
+.icrm-update-panel .icu-msg.on {
+  display: block;
+}
+
+.icrm-update-panel .icu-msg--ok {
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  color: #065f46;
+}
+
+.icrm-update-panel .icu-msg--err {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.icrm-update-panel .icu-hint {
+  color: var(--ob-sub);
+  font-size: 13px;
+  margin: 0 0 12px;
+  line-height: 1.55;
+}
+
+.icrm-update-panel .icu-log {
+  margin-top: 12px;
+  max-height: 180px;
+  overflow: auto;
+  background: #f8fafc;
+  border: 1px solid var(--icrm-border, #d7dee8);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
+  display: none;
+}
+
+.icrm-update-panel .icu-log.on {
+  display: block;
+}
+
+.icrm-update-panel .ob-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.icrm-update-panel .ob-card-title {
+  margin: 0;
+}
+
+.icrm-update-panel .ob-card-desc {
+  margin: 6px 0 0;
+  color: var(--ob-sub);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.icrm-update-panel .ob-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.icrm-update-panel .ob-badge-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+}
+
+.icrm-update-panel .ob-badge-warning {
+  background: rgba(245, 158, 11, 0.13);
+  color: #b45309;
+}
+
+.icrm-update-panel .ob-badge-danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #b91c1c;
+}
+
+.icrm-update-panel .ob-changelog {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.icrm-update-panel .ob-changelog ul {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.icrm-update-panel .ob-changelog li {
+  padding: 9px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+@media (max-width: 720px) {
+  .icrm-update-panel .ob-card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .icrm-update-panel .icu-row {
+    flex-direction: column;
+  }
+
+  .icrm-update-panel .icu-val {
+    text-align: left;
+  }
+
+  .icrm-update-panel .icu-actions {
+    flex-direction: column;
+  }
+
+  .icrm-update-panel .icu-btn {
+    width: 100%;
+  }
+}
