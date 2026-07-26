@@ -8,6 +8,7 @@ import {
   RoundResultPayload,
 } from '../types';
 import { apiClient } from '../api';
+import { useMockTransport } from '../api/config';
 import { gameSocket } from '../api/socket';
 import { walletStore } from '../stores/walletStore';
 import { walletService } from './walletService';
@@ -47,14 +48,16 @@ function asOpponent(raw: Partial<MatchPlayer> & { id: string; nickname: string }
 }
 
 /**
- * 1:1 대전 — Socket.IO 서버 authoritative.
- * HTTP는 방 목록 조회만, 매칭·선택·결과는 전부 소켓 이벤트.
+ * 1:1 대전
+ * - 실서버: Socket.IO authoritative
+ * - VITE_USE_MOCK=true: HTTP Mock 엔진 (FTP 정적 배포용)
  */
 class MatchServiceImpl {
   private currentTicket: QueueTicket | null = null;
   private currentMatch: Match | null = null;
 
   public ensureSocket() {
+    if (useMockTransport) return;
     gameSocket.connect();
   }
 
@@ -71,12 +74,22 @@ class MatchServiceImpl {
   }
 
   public async startMatch(room: GameRoom): Promise<StartMatchResult> {
-    this.ensureSocket();
     const balance = walletStore.getBalance();
     if (balance.points < room.entryFee) {
       return { status: 'insufficient_funds', requiredPoints: room.entryFee };
     }
 
+    if (useMockTransport) {
+      const ticket = await apiClient.post<QueueTicket>('/matches/queue', {
+        roomId: room.id,
+        roomName: room.title,
+        stakePoints: room.entryFee,
+      });
+      this.currentTicket = ticket;
+      return { status: 'queued', ticket };
+    }
+
+    this.ensureSocket();
     return new Promise((resolve) => {
       const offStarted = gameSocket.on('MATCH_SEARCH_STARTED', (payload) => {
         const data = payload as {
@@ -125,6 +138,10 @@ class MatchServiceImpl {
   }
 
   public waitForMatch(ticket: QueueTicket): Promise<Match> {
+    if (useMockTransport) {
+      return this.confirmMatch(ticket.id);
+    }
+
     this.ensureSocket();
     return new Promise((resolve, reject) => {
       const offFound = gameSocket.on('MATCH_FOUND', (payload) => {
@@ -171,16 +188,26 @@ class MatchServiceImpl {
   }
 
   public async cancelMatch(ticket: QueueTicket): Promise<{ success: boolean } | null> {
+    if (useMockTransport) {
+      this.currentTicket = null;
+      return apiClient.post<{ success: boolean }>(`/matches/queue/${ticket.id}/cancel`);
+    }
+
     this.ensureSocket();
     gameSocket.emit('MATCH_QUEUE_LEAVE');
     this.currentTicket = null;
     void ticket;
-    // 참가비는 MATCH_FOUND 시점에만 차감되므로 대기 취소 환불은 없음
     return { success: true };
   }
 
   public async confirmMatch(ticketId: string): Promise<Match> {
-    // 서버가 MATCH_FOUND 를 보내면 waitForMatch 가 처리. 호환용 스텁.
+    if (useMockTransport) {
+      const match = await apiClient.post<Match>(`/matches/queue/${ticketId}/confirm`);
+      this.currentMatch = match;
+      if (this.currentTicket) this.currentTicket.status = 'matched';
+      return match;
+    }
+
     if (this.currentMatch) return this.currentMatch;
     throw new Error(`대기 확정 실패: ${ticketId}`);
   }
@@ -190,6 +217,14 @@ class MatchServiceImpl {
     round: number;
     choice: MatchChoice;
   }): Promise<RoundResultPayload> {
+    if (useMockTransport) {
+      return apiClient.post<RoundResultPayload>(`/matches/${input.matchId}/choices`, {
+        round: input.round,
+        choice: input.choice,
+        requestId: `${input.matchId}_round_${input.round}`,
+      });
+    }
+
     this.ensureSocket();
     gameSocket.emit('CHOICE_SUBMIT', {
       matchId: input.matchId,
@@ -227,6 +262,7 @@ class MatchServiceImpl {
   }
 
   public onWalletUpdated(handler: (balance: { points: number; tickets: number }) => void) {
+    if (useMockTransport) return () => undefined;
     return gameSocket.on('WALLET_UPDATED', (payload) => {
       const data = payload as { points: number; tickets: number };
       walletStore.applyServerState({ points: data.points, tickets: data.tickets });
@@ -243,6 +279,7 @@ class MatchServiceImpl {
       opponentScore: number;
     }) => void
   ) {
+    if (useMockTransport) return () => undefined;
     return gameSocket.on('MATCH_FINISHED', (payload) => {
       handler(payload as never);
       void walletService.getWallet().catch(() => null);
@@ -251,15 +288,21 @@ class MatchServiceImpl {
   }
 
   public onMatchResumed(handler: (payload: unknown) => void) {
+    if (useMockTransport) return () => undefined;
     return gameSocket.on('MATCH_RESUMED', handler);
   }
 
   public requestState() {
+    if (useMockTransport) return;
     this.ensureSocket();
     gameSocket.emit('MATCH_STATE_REQUEST');
   }
 
   public async getMatchResult(matchId: string): Promise<MatchResult> {
+    if (useMockTransport) {
+      return apiClient.get<MatchResult>(`/matches/${matchId}/result`);
+    }
+
     if (this.currentMatch?.id === matchId) {
       return {
         matchId,
@@ -278,7 +321,6 @@ class MatchServiceImpl {
   }
 
   public async settleMatch(matchId: string): Promise<SettleMatchResult> {
-    // 서버가 MATCH_FINISHED 시점에 이미 정산함
     const result = await this.getMatchResult(matchId).catch(() => null);
     return {
       result: result ?? {

@@ -37,20 +37,96 @@ let mockNotificationState = mockNotifications.map((item) => ({ ...item }));
  * 3단계에서 실제 서버가 준비되면 `.env`의 `VITE_API_BASE_URL`만 채우면
  * 이 등록은 무시되고 동일한 서비스 코드가 HTTP로 동작한다.
  */
+function sessionResult(profile: UserProfile, guest = false) {
+  return {
+    accessToken: `mock_${guest ? 'guest' : 'user'}_${Date.now().toString(36)}`,
+    guest,
+    profile: { ...profile, isGuest: guest },
+    user: { id: profile.id, nickname: profile.nickname, loginId: guest ? null : 'dorirang' },
+  };
+}
+
 export function registerMockRoutes(client: ApiClient) {
   /* ---------------------------------- auth --------------------------------- */
-  client.registerMock('POST /auth/login', (ctx) => {
-    const body = (ctx.body ?? {}) as { nickname?: string };
-    mockMe = { ...mockMe, nickname: body.nickname ?? mockMe.nickname, isOnline: true };
-    return { token: `mock_token_${Date.now().toString(36)}`, user: { ...mockMe } };
+  client.registerMock('POST /auth/signup', (ctx) => {
+    const body = (ctx.body ?? {}) as {
+      loginId?: string;
+      nickname?: string;
+      password?: string;
+    };
+    if (!body.loginId || !body.nickname || !body.password) {
+      throw new ApiError({
+        code: 'UNKNOWN',
+        status: 400,
+        message: '로그인 ID·닉네임·비밀번호를 입력해 주세요.',
+      });
+    }
+    mockMe = {
+      ...initialUserProfile,
+      id: `usr_${body.loginId}`,
+      nickname: body.nickname,
+      points: 5000,
+      tickets: 3,
+      level: 1,
+      wins: 0,
+      losses: 0,
+      draws: 0,
+      isOnline: true,
+      isGuest: false,
+    };
+    walletStore.applyServerState({ points: mockMe.points, tickets: mockMe.tickets });
+    return sessionResult(mockMe, false);
   });
+
+  client.registerMock('POST /auth/login', (ctx) => {
+    const body = (ctx.body ?? {}) as { loginId?: string; password?: string; nickname?: string };
+    if (!body.loginId && !body.nickname) {
+      throw new ApiError({
+        code: 'UNKNOWN',
+        status: 400,
+        message: '로그인 ID를 입력해 주세요.',
+      });
+    }
+    mockMe = {
+      ...mockMe,
+      nickname: body.nickname ?? mockMe.nickname,
+      isOnline: true,
+      isGuest: false,
+    };
+    walletStore.applyServerState({ points: mockMe.points, tickets: mockMe.tickets });
+    return sessionResult(mockMe, false);
+  });
+
+  client.registerMock('POST /auth/guest', () => {
+    mockMe = {
+      ...initialUserProfile,
+      id: `guest_${Date.now().toString(36)}`,
+      nickname: `게스트${Math.floor(Math.random() * 9000 + 1000)}`,
+      points: 5000,
+      tickets: 0,
+      level: 1,
+      wins: 0,
+      losses: 0,
+      draws: 0,
+      isOnline: true,
+      isGuest: true,
+    };
+    walletStore.applyServerState({ points: mockMe.points, tickets: mockMe.tickets });
+    return sessionResult(mockMe, true);
+  });
+
+  client.registerMock('POST /auth/refresh', () => sessionResult({ ...mockMe, isGuest: false }, false));
 
   client.registerMock('POST /auth/logout', () => {
     mockMe = { ...mockMe, isOnline: false };
     return { success: true };
   });
 
-  client.registerMock('GET /auth/me', () => ({ ...mockMe }));
+  client.registerMock('GET /auth/me', () => ({
+    guest: Boolean(mockMe.isGuest),
+    profile: { ...mockMe },
+    user: { id: mockMe.id, nickname: mockMe.nickname },
+  }));
 
   /* ---------------------------------- users -------------------------------- */
   client.registerMock('GET /users', () => mockUsers.map((user) => ({ ...user })));

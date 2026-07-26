@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GameRoom, Match } from '../types';
+import { useMockTransport } from '../api/config';
 import { QueueTicket, matchService } from '../services/matchService';
 import { gameSocket } from '../api/socket';
 
@@ -21,13 +22,15 @@ export interface UseMatchmakingResult {
 
 /**
  * 서버 매칭 큐 훅.
- * Mock 타이머 대신 MATCH_FOUND / MATCH_CANCELLED 소켓 이벤트를 대기한다.
+ * - 실서버: MATCH_FOUND 소켓 대기
+ * - Mock: readyAt 타이머 후 confirm
  */
 export function useMatchmaking(options: UseMatchmakingOptions = {}): UseMatchmakingResult {
   const [ticket, setTicket] = useState<QueueTicket | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const ticketRef = useRef<QueueTicket | null>(null);
   const callbacksRef = useRef(options);
+  const confirmTimerRef = useRef<number | null>(null);
   callbacksRef.current = options;
 
   useEffect(() => {
@@ -47,6 +50,8 @@ export function useMatchmaking(options: UseMatchmakingOptions = {}): UseMatchmak
   }, [ticket]);
 
   useEffect(() => {
+    if (useMockTransport) return;
+
     matchService.ensureSocket();
 
     const offFound = gameSocket.on('MATCH_FOUND', (payload) => {
@@ -90,6 +95,14 @@ export function useMatchmaking(options: UseMatchmakingOptions = {}): UseMatchmak
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (confirmTimerRef.current !== null) {
+        window.clearTimeout(confirmTimerRef.current);
+      }
+    };
+  }, []);
+
   const start = useCallback(async (room: GameRoom) => {
     try {
       matchService.ensureSocket();
@@ -102,6 +115,24 @@ export function useMatchmaking(options: UseMatchmakingOptions = {}): UseMatchmak
 
       setTicket(result.ticket);
       callbacksRef.current.onQueued?.(result.ticket);
+
+      if (useMockTransport) {
+        const delay = Math.max(0, result.ticket.readyAt - Date.now());
+        if (confirmTimerRef.current !== null) window.clearTimeout(confirmTimerRef.current);
+        confirmTimerRef.current = window.setTimeout(() => {
+          void matchService
+            .confirmMatch(result.ticket.id)
+            .then((match) => {
+              if (ticketRef.current?.id !== result.ticket.id) return;
+              setTicket(null);
+              callbacksRef.current.onMatched?.(match, result.ticket);
+            })
+            .catch((error) => {
+              callbacksRef.current.onError?.(error);
+            });
+        }, delay);
+      }
+
       return true;
     } catch (error) {
       callbacksRef.current.onError?.(error);
@@ -112,6 +143,10 @@ export function useMatchmaking(options: UseMatchmakingOptions = {}): UseMatchmak
   const cancel = useCallback(async () => {
     const current = ticketRef.current;
     if (!current) return;
+    if (confirmTimerRef.current !== null) {
+      window.clearTimeout(confirmTimerRef.current);
+      confirmTimerRef.current = null;
+    }
     setTicket(null);
     try {
       await matchService.cancelMatch(current);

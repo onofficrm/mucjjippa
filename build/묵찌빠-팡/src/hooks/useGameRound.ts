@@ -6,6 +6,7 @@ import {
   RPSChoice,
   RoundResultPayload,
 } from '../types';
+import { useMockTransport } from '../api/config';
 import { matchService } from '../services/matchService';
 import { gameSocket } from '../api/socket';
 
@@ -99,6 +100,8 @@ export function useGameRound(options: UseGameRoundOptions = {}): UseGameRoundRes
   }, [clearTimers]);
 
   useEffect(() => {
+    if (useMockTransport) return;
+
     const offRoundStarted = gameSocket.on('ROUND_STARTED', (payload) => {
       const data = payload as {
         matchId: string;
@@ -276,6 +279,61 @@ export function useGameRound(options: UseGameRoundOptions = {}): UseGameRoundRes
       );
 
       try {
+        if (useMockTransport) {
+          const data = await matchService.submitChoice({
+            matchId: current.matchId,
+            round: current.round,
+            choice,
+          });
+          setActiveMatch((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  playerChoice: data.playerChoice,
+                  opponentChoice: data.opponentChoice,
+                  phase: 'showdown',
+                }
+              : prev
+          );
+          schedule(() => {
+            callbacksRef.current.onRoundRevealed?.(data);
+            setActiveMatch((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    playerScore: data.playerScore,
+                    opponentScore: data.opponentScore,
+                    roundResult: data.outcome,
+                    matchWinner: data.matchWinner,
+                    phase: 'result',
+                  }
+                : prev
+            );
+            if (data.matchWinner) {
+              schedule(() => {
+                callbacksRef.current.onMatchFinished?.(data);
+              }, GAME_ROUND_TIMINGS.finishDelayMs);
+            } else {
+              submittingRef.current = false;
+              schedule(() => {
+                setActiveMatch((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        round: prev.round + 1,
+                        playerChoice: null,
+                        opponentChoice: null,
+                        roundResult: null,
+                        phase: 'waiting',
+                      }
+                    : prev
+                );
+              }, GAME_ROUND_TIMINGS.nextRoundMs);
+            }
+          }, GAME_ROUND_TIMINGS.showdownMs);
+          return;
+        }
+
         gameSocket.emit('CHOICE_SUBMIT', {
           matchId: current.matchId,
           choice,
@@ -288,7 +346,7 @@ export function useGameRound(options: UseGameRoundOptions = {}): UseGameRoundRes
         callbacksRef.current.onError?.(error);
       }
     },
-    [activeMatch]
+    [activeMatch, schedule]
   );
 
   return {
