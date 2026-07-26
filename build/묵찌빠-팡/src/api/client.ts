@@ -170,18 +170,13 @@ export class ApiClient {
     } catch (error) {
       const apiError = toApiError(error);
 
-      if (
-        !useMock &&
-        apiError.isUnauthorized &&
-        !options.skipRefresh &&
-        !isAuthBootstrapPath(path)
-      ) {
-        const refreshed = await this.refreshAccessToken();
-        if (refreshed) {
-          return this.request<T>(path, { ...options, skipRefresh: true });
+      if (apiError.isUnauthorized && !isAuthBootstrapPath(path)) {
+        if (!useMock && !options.skipRefresh) {
+          const refreshed = await this.refreshAccessToken();
+          if (refreshed) {
+            return this.request<T>(path, { ...options, skipRefresh: true });
+          }
         }
-        this.unauthorizedHandler?.();
-      } else if (apiError.isUnauthorized) {
         this.unauthorizedHandler?.();
       }
 

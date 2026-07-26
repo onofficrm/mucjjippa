@@ -217,6 +217,16 @@ class AuthServiceImpl {
       return { authenticated: true, guest: false, profile: refreshed.profile };
     }
 
+    // 부트스트랩 대기 중 사용자가 로그인/게스트를 완료했을 수 있음 — 덮어쓰지 않음
+    if (apiClient.getAccessToken()) {
+      try {
+        const me = await this.getCurrentUser();
+        return { authenticated: true, guest: me.guest, profile: me.profile };
+      } catch {
+        /* fall through */
+      }
+    }
+
     apiClient.setAccessToken(null);
     setAuthMode(null);
     return { authenticated: false, guest: false, profile: null };

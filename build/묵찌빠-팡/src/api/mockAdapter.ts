@@ -27,8 +27,27 @@ import { walletStore } from '../stores/walletStore';
 import { ApiClient } from './client';
 import { ApiError } from './apiError';
 
+const MOCK_REFRESH_KEY = 'rps_mock_refresh';
+
+function readMockRefresh(): boolean {
+  try {
+    return window.sessionStorage.getItem(MOCK_REFRESH_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeMockRefresh(active: boolean) {
+  try {
+    if (active) window.sessionStorage.setItem(MOCK_REFRESH_KEY, '1');
+    else window.sessionStorage.removeItem(MOCK_REFRESH_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Mock 전용 사용자 프로필 저장소 (서버의 users 테이블 대역) */
-let mockMe: UserProfile = { ...initialUserProfile };
+let mockMe: UserProfile = { ...initialUserProfile, isOnline: false, isGuest: false };
 let mockNotificationState = mockNotifications.map((item) => ({ ...item }));
 
 /**
@@ -75,6 +94,7 @@ export function registerMockRoutes(client: ApiClient) {
       isGuest: false,
     };
     walletStore.applyServerState({ points: mockMe.points, tickets: mockMe.tickets });
+    writeMockRefresh(true);
     return sessionResult(mockMe, false);
   });
 
@@ -88,12 +108,13 @@ export function registerMockRoutes(client: ApiClient) {
       });
     }
     mockMe = {
-      ...mockMe,
-      nickname: body.nickname ?? mockMe.nickname,
+      ...initialUserProfile,
+      nickname: body.nickname || initialUserProfile.nickname,
       isOnline: true,
       isGuest: false,
     };
     walletStore.applyServerState({ points: mockMe.points, tickets: mockMe.tickets });
+    writeMockRefresh(true);
     return sessionResult(mockMe, false);
   });
 
@@ -112,21 +133,49 @@ export function registerMockRoutes(client: ApiClient) {
       isGuest: true,
     };
     walletStore.applyServerState({ points: mockMe.points, tickets: mockMe.tickets });
+    // 실서버와 동일: 게스트는 refresh cookie 없음
+    writeMockRefresh(false);
     return sessionResult(mockMe, true);
   });
 
-  client.registerMock('POST /auth/refresh', () => sessionResult({ ...mockMe, isGuest: false }, false));
+  client.registerMock('POST /auth/refresh', () => {
+    if (!readMockRefresh()) {
+      throw new ApiError({
+        code: 'UNAUTHORIZED',
+        status: 401,
+        message: '세션이 만료되었습니다. 다시 로그인해 주세요.',
+      });
+    }
+    mockMe = { ...initialUserProfile, isOnline: true, isGuest: false };
+    walletStore.applyServerState({ points: mockMe.points, tickets: mockMe.tickets });
+    return sessionResult(mockMe, false);
+  });
 
   client.registerMock('POST /auth/logout', () => {
-    mockMe = { ...mockMe, isOnline: false };
+    mockMe = { ...mockMe, isOnline: false, isGuest: false };
+    writeMockRefresh(false);
     return { success: true };
   });
 
-  client.registerMock('GET /auth/me', () => ({
-    guest: Boolean(mockMe.isGuest),
-    profile: { ...mockMe },
-    user: { id: mockMe.id, nickname: mockMe.nickname },
-  }));
+  client.registerMock('GET /auth/me', () => {
+    // 모듈 리로드 후에는 메모리 프로필이 초기화되므로, refresh 세션이 있으면 복구
+    if (!mockMe.isOnline) {
+      if (readMockRefresh()) {
+        mockMe = { ...initialUserProfile, isOnline: true, isGuest: false };
+      } else {
+        throw new ApiError({
+          code: 'UNAUTHORIZED',
+          status: 401,
+          message: '로그인이 필요합니다.',
+        });
+      }
+    }
+    return {
+      guest: Boolean(mockMe.isGuest),
+      profile: { ...mockMe },
+      user: { id: mockMe.id, nickname: mockMe.nickname },
+    };
+  });
 
   /* ---------------------------------- users -------------------------------- */
   client.registerMock('GET /users', () => mockUsers.map((user) => ({ ...user })));
