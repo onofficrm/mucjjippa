@@ -1,0 +1,6 @@
+{
+  "name": "묵찌빠 팡",
+  "description": "실시간 1:1 대전, 포인트별 게임방, 정기 토너먼트, 관전 및 상점 기능이 제공되는 모바일 중심 아케이드 가위바위보/묵찌빠 팡 게임",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

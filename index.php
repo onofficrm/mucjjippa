@@ -4,18 +4,22 @@ include_once('./_common.php');
 define('_INDEX_', true);
 if (!defined('_GNUBOARD_')) exit; // 개별 페이지 접근 불가
 
+// 빌더 브릿지 홈 렌더 우선 적용 (PC/모바일 공통)
+if (is_file(G5_PLUGIN_PATH . '/onoff-builder-bridge/bootstrap.php')) {
+    include_once G5_PLUGIN_PATH . '/onoff-builder-bridge/bootstrap.php';
+    if (function_exists('onoff_builder_get_home_bridge_id') && function_exists('onoff_builder_project_exists') && function_exists('onoff_builder_render_import_page')) {
+        $onoff_home_id = onoff_builder_get_home_bridge_id();
+        if ($onoff_home_id !== '' && onoff_builder_project_exists($onoff_home_id)) {
+            onoff_builder_render_import_page($onoff_home_id);
+            return;
+        }
+    }
+}
+
 include_once(G5_PATH.'/inc/onoff-builder-home.php');
 
 /*
  * [보존] 이전 루트 메인 출력 코드
- *
- * // 빌더 브릿지 홈 렌더 우선 적용
- * if (is_file(G5_PLUGIN_PATH . '/onoff-builder-bridge/bootstrap.php')) {
- *     include_once G5_PLUGIN_PATH . '/onoff-builder-bridge/bootstrap.php';
- *     if (function_exists('onoff_builder_maybe_render_home') && onoff_builder_maybe_render_home()) {
- *         return;
- *     }
- * }
  *
  * // 테마 사용 시 테마 index로 위임
  * if (defined('G5_THEME_PATH')) {
